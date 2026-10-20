@@ -1,0 +1,27 @@
+name: CR
+
+# Continuous Release: accumulates semantic commits into a release PR
+# (CHANGELOG.md + version.txt). Merging the PR creates the tag and the
+# release, then CD is dispatched to attach the builds. The dispatch is
+# explicit because releases created with GITHUB_TOKEN never fire the
+# `release: published` event of other workflows.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v5
+        id: rp
+      - name: Trigger CD
+        if: steps.rp.outputs.release_created == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run cd.yml --repo ${{ github.repository }} -f tag='${{ steps.rp.outputs.tag_name }}'

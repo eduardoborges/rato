@@ -1,0 +1,59 @@
+name: CD
+
+# Builds a published release and attaches Rato.dmg to the tag.
+# The manual dispatch rebuilds an existing tag.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. v0.1.0)"
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  TAG: ${{ github.event.release.tag_name || inputs.tag }}
+
+jobs:
+  build-app:
+    runs-on: macos-26
+    timeout-minutes: 30
+    environment:
+      name: release
+      url: https://github.com/eduardoborges/rato/releases/tag/${{ github.event.release.tag_name || inputs.tag }}
+    env:
+      # Without the signing secrets the build ships ad hoc signed.
+      HAVE_SIGNING: ${{ secrets.MACOS_CERT_P12 != '' }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+      - name: Import signing certificate
+        if: env.HAVE_SIGNING == 'true'
+        env:
+          CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        run: |
+          echo "$CERT_P12" | base64 -d > cert.p12
+          security create-keychain -p ci build.keychain
+          # keychains auto-lock after 5 minutes, and a locked keychain hangs codesign forever
+          security set-keychain-settings -lut 21600 build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p ci build.keychain
+          security import cert.p12 -k build.keychain -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k ci build.keychain > /dev/null
+          rm cert.p12
+      - name: Build and package
+        env:
+          SIGN_IDENTITY: ${{ env.HAVE_SIGNING == 'true' && 'Developer ID Application' || '' }}
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.NOTARY_ISSUER_ID }}
+          NOTARY_KEY_P8: ${{ secrets.NOTARY_KEY_P8 }}
+        run: app/build.sh --dmg
+      - name: Upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" app/build/Rato.dmg --clobber
