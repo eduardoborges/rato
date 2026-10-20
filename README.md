@@ -21,7 +21,7 @@ G HUB is big, keeps an agent and an updater daemon running all the time, and on 
 
 ## What it does
 
-- 🔋 **Battery with time left.** Percentage from the mouse's own discharge curve, plus the hours of use left at the current polling rate and lighting. The numbers come from the power model G HUB downloads for the mouse; without G HUB installed, Rato shows a voltage-based percentage only.
+- 🔋 **Battery with time left.** Percentage and hours of use left from a discharge curve Rato learns from your mouse, so G HUB doesn't need to be installed.
 - 🎯 **DPI levels.** Edit the levels and pick the default one. The change applies right away.
 - ⚡ **Polling rate.** 1, 2, 4 or 8 ms.
 - 💡 **Lighting.** Off, fixed color, breathing or color cycle.
@@ -39,7 +39,7 @@ And the rest:
 
 - macOS 13 or later
 - A Logitech mouse with HID++ 2.0 and onboard profiles (feature `0x8100`). Only tested on a G703 LIGHTSPEED on its USB receiver.
-- G HUB closed while Rato writes. It can stay installed, and it has to be installed for the time left estimate.
+- G HUB closed while Rato writes. It can stay installed.
 - Input Monitoring permission for Rato.app. macOS asks on first launch.
 
 ## Install
@@ -81,16 +81,18 @@ swift run Rato set rate 1                    # polling in ms: 1, 2, 4 or 8
 swift run Rato set led off                   # or: color ff0000, breathe 00ff00, cycle
 swift run Rato backup
 swift run Rato restore <backup folder>
-swift run Rato selftest                      # driver routing, Bluetooth battery parser, power model
+swift run Rato selftest                      # driver routing, Bluetooth battery parser, battery model
 ```
 
 Backups go to `~/Library/Application Support/Rato/backups/`.
 
 ## Battery time left
 
-G HUB downloads a `battery.xml` for each mouse into `/Library/Application Support/Logi/LGHUB/depots/`. Its discharge curve maps the voltage to the energy already used, and its power blocks give the draw in mW of the sensor, the MCU, each polling rate and each lighting effect. Rato reads that file, finds the energy left at the current voltage and divides it by the draw of the active profile. On a full G703 at 1 ms that gives 34.5 h with the lighting at full brightness and 60.6 h with it off. Logitech advertises 35 h and 60 h.
+The G703 only reports its battery voltage. G HUB turns that into a percentage and hours with a `battery.xml` it downloads for each mouse: a discharge curve Logitech measured at a constant load (minutes, voltage and energy used), and the draw in mW of the sensor, the MCU, each polling rate and each lighting effect. It finds the energy left at the current voltage and divides it by the draw of the active profile.
 
-The estimate assumes continuous use. An idle mouse sleeps and lasts longer. The file belongs to Logitech, so it isn't in this repo; Rato only reads it from disk.
+Rato doesn't read that file and learns the curve from your mouse instead. Every read while the mouse is awake adds the time since the previous read to the current 20 mV voltage band, and a band counts once the voltage has passed all the way through it. Hours left is the sum of the learned time in the bands below the current voltage. Bands it hasn't learned yet follow a generic Li-ion curve at the pace of the learned ones. What it learns lives in `~/Library/Application Support/Rato/bateria-<pid>.json`.
+
+Until three bands are learned, the percentage comes from the generic curve, which is off by up to about 8 points on the G703, and the menu shows no hours. The estimate gets closer as the mouse goes through a full discharge. The hours count only time with the mouse awake, at the lighting and polling you usually use. Change the lighting and they drift until Rato relearns.
 
 ## Common problems
 
@@ -106,7 +108,7 @@ The estimate assumes continuous use. An idle mouse sleeps and lasts longer. The 
 - Buttons can't be remapped yet.
 - Lighting uses the same effect on both G703 zones.
 - The menu has a fixed color palette, and breathing and cycle run at 4 s and 8 s at full intensity. Other colors only from the command line.
-- Without G HUB installed, the percentage is a straight line between 3400 and 4120 mV and there's no time left estimate.
+- Hours left show up after a few hours of use and only get accurate after a full discharge.
 - One mouse per receiver: the first slot that answers.
 - Rato doesn't start at login.
 
