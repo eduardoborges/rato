@@ -42,6 +42,16 @@ And the rest:
 - G HUB closed while Rato writes. It can stay installed, and it has to be installed for the time left estimate.
 - Input Monitoring permission for Rato.app. macOS asks on first launch.
 
+## Install
+
+Install it with Homebrew:
+
+```sh
+brew install --cask eduardoborges/tap/rato
+```
+
+Or grab `Rato.dmg` from the [latest release](https://github.com/eduardoborges/rato/releases/latest). The release is built for Apple silicon only. On an Intel Mac, build it from source as shown below.
+
 ## 🛠 Build
 
 You need Xcode 26 or later, because `actool` compiles the Icon Composer icon.
