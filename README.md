@@ -78,6 +78,17 @@ O item "Mostrar porcentagem" do menu liga e desliga o número ao lado do ícone,
 - Um mouse por receptor: o primeiro slot que responde.
 - O app não abre sozinho no login.
 
+## Análise com REA
+
+O repo traz o [REA](https://github.com/morluto/rea) configurado para o Claude Code, sem mexer na configuração global. O mise instala Node, Java 21, Ghidra 12.1.4 e o próprio REA:
+
+```bash
+mise install
+mise exec -- rea doctor --provider ghidra --json
+```
+
+Depois abra o Claude Code na raiz do repo. O `.mcp.json` registra o servidor e a skill fica em `.claude/skills/`. O zip do Ghidra não traz o decompilador para Mac arm64, então o `mise install` compila um na primeira vez (precisa das Command Line Tools do Xcode).
+
 ## Como funciona
 
 Framing HID++, descoberta de features, bateria e a receita do LED estão em [RELATORIO.md](RELATORIO.md).
@@ -86,6 +97,9 @@ Framing HID++, descoberta de features, bateria e a receita do LED estão em [REL
 
 - `app/`: o executável Swift
 - `RELATORIO.md`: o protocolo, passo a passo
+- `mise.toml`: versões das ferramentas de análise
+- `.mcp.json` e `.claude/`: o REA no Claude Code
+- `scripts/`: passos que o mise roda depois de instalar o Ghidra e o REA
 - `analysis/lghub_agent.arm64`: slice arm64 do `lghub_agent`, de onde saiu o protocolo
 
 O binário fica fora do git (`.gitignore`). Tem 105 MB e é da Logitech, então não dá para redistribuir. Para recriar com o G HUB instalado:

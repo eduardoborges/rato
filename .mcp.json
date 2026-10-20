@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "rea": {
+      "type": "stdio",
+      "command": "mise",
+      "args": [
+        "exec",
+        "--",
+        "rea",
+        "mcp"
+      ],
+      "env": {}
+    }
+  }
+}
