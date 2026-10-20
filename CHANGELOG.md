@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/eduardoborges/rato/compare/v0.1.1...v0.1.2) (2026-10-20)
+
+
+### Bug Fixes
+
+* keep the last battery reading when a read fails ([ecb0e13](https://github.com/eduardoborges/rato/commit/ecb0e13ccb8c98231ff42a39dd5173296c003138))
+
 ## [0.1.1](https://github.com/eduardoborges/rato/compare/v0.1.0...v0.1.1) (2026-10-20)
 
 
