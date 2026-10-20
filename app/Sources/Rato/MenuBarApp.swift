@@ -1,4 +1,5 @@
 import AppKit
+import IOKit.hid
 
 /// Menu-bar: título com % de bateria do primeiro device; dropdown com
 /// uma linha por device (bateria) + checkbox "Apagar LEDs".
@@ -8,6 +9,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+
+        // Num .app, o macOS só mostra o receptor ao IOHIDManager com a permissão de
+        // Monitoramento de Entrada. Pelo terminal, o app herda a do terminal.
+        if IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) != kIOHIDAccessTypeGranted {
+            hlog("sem permissão de Monitoramento de Entrada; pedindo ao macOS")
+            IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)
+        }
 
         let engine = DeviceEngine.shared
         engine.onChanged = { [weak self] in self?.rebuild() }
