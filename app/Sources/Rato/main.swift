@@ -203,6 +203,9 @@ func startMenuBarApp() -> Never {
     exit(0)
 }
 
+// Fora de um terminal (open --stdout, launchd) o print ficaria no buffer até o app sair.
+setvbuf(stdout, nil, _IOLBF, 0)
+
 switch CommandLine.arguments.dropFirst().first {
 case "selftest": selftest()
 case let c? where ["probe", "state", "profiles", "features", "set", "backup", "restore", "mode"].contains(c): CLI.run(c)
