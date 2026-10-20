@@ -87,7 +87,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private static func batteryLine(_ t: MouseTarget) -> (symbol: String, text: String) {
         if let b = t.battery {
-            return (batterySymbol(b), ([levelText(b), b.status] + [b.timeLeftText].compactMap { $0 }).joined(separator: "  •  "))
+            var parts = [levelText(b), b.status] + [b.timeLeftText].compactMap { $0 }
+            if t.batteryErr != nil, let at = t.batteryAt {
+                parts.append("lido às \(at.formatted(date: .omitted, time: .shortened))")
+            }
+            return (batterySymbol(b), parts.joined(separator: "  •  "))
         }
         if let err = t.batteryErr { return ("exclamationmark.triangle", err) }
         return ("battery.0percent", "n/a")

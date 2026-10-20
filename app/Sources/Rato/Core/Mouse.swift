@@ -94,6 +94,7 @@ final class MouseTarget: @unchecked Sendable {
     private let stateLock = NSLock()
     private var _battery: BatteryState?
     private var _batteryErr: String?
+    private var _batteryAt: Date?
     private var _settings: MouseSettings?
     private var _lastAction: String?
     private var _busy = false
@@ -106,6 +107,7 @@ final class MouseTarget: @unchecked Sendable {
     var label: String { driver.name }
     var battery: BatteryState? { stateLock.lock(); defer { stateLock.unlock() }; return _battery }
     var batteryErr: String? { stateLock.lock(); defer { stateLock.unlock() }; return _batteryErr }
+    var batteryAt: Date? { stateLock.lock(); defer { stateLock.unlock() }; return _batteryAt }
     var settings: MouseSettings? { stateLock.lock(); defer { stateLock.unlock() }; return _settings }
     var lastAction: String? { stateLock.lock(); defer { stateLock.unlock() }; return _lastAction }
     var busy: Bool {
@@ -121,8 +123,9 @@ final class MouseTarget: @unchecked Sendable {
         let result = Result { try driver.readBattery() }
         stateLock.lock()
         switch result {
-        case .success(let b): _battery = b; _batteryErr = nil
-        case .failure(let e): _battery = nil; _batteryErr = String(describing: e)
+        case .success(let b): _battery = b; _batteryErr = nil; _batteryAt = Date()
+        // Guarda a última leitura: um mouse dormindo não responde, e o menu mostra o valor antigo com a hora da leitura.
+        case .failure(let e): _batteryErr = String(describing: e)
         }
         stateLock.unlock()
     }
