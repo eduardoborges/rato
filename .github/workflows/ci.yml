@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  pull_request:
+    paths-ignore: ['**.md']
+  push:
+    branches: [main]
+    paths-ignore: ['**.md']
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: swift build
+      - name: Selftest
+        run: swift run Rato selftest
