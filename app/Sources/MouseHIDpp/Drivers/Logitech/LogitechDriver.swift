@@ -52,7 +52,8 @@ final class LogitechDriver: MouseDriver, MouseDriverType {
         b.percent = Int((left / m.capacityMwh * 100).rounded())
         if let p = profile ?? (try? client.activeProfile()) {
             profile = p
-            b.hoursLeft = left / m.powerMw(rateMs: p.reportRateMs, leds: p.leds.compactMap(LedEffect.init(hidppProfileBytes:)))
+            let mw = m.powerMw(rateMs: p.reportRateMs, leds: p.leds.compactMap(LedEffect.init(hidppProfileBytes:)))
+            if mw > 0 { b.hoursLeft = left / mw }
         }
         return b
     }
