@@ -45,7 +45,7 @@ final class DeviceEngine: @unchecked Sendable {
         lock.unlock()
 
         let thread = HIDRunLoopThread { [weak self] in self?.setupManagerOnHIDRunLoop() }
-        thread.name = "MouseHIDpp-HIDLoop"
+        thread.name = "Rato-HIDLoop"
         rlThread = thread
         startedAt = Date()
         thread.start()

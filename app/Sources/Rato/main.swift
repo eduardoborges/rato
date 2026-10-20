@@ -1,17 +1,17 @@
 import Foundation
 import AppKit
 
-// MouseHIDpp: bateria, DPI, polling e LED de mouses por HID. Cada fabricante tem um driver
+// Rato: bateria, DPI, polling e LED de mouses por HID. Cada fabricante tem um driver
 // em Drivers/; mouse sem driver próprio cai no genérico, que só mostra a bateria Bluetooth.
 //
-//   MouseHIDpp                                   menu bar
-//   MouseHIDpp probe | state                     qualquer mouse
-//   MouseHIDpp set dpi <níveis> <padrão>         ex.: set dpi 400,800,1600,3200 4
-//   MouseHIDpp set dpi-default <n>
-//   MouseHIDpp set rate <ms>
-//   MouseHIDpp set led off | color RRGGBB | breathe RRGGBB | cycle
-//   MouseHIDpp profiles | features | backup | restore <pasta> | mode host|onboard    só Logitech
-//   MouseHIDpp selftest
+//   Rato                                   menu bar
+//   Rato probe | state                     qualquer mouse
+//   Rato set dpi <níveis> <padrão>         ex.: set dpi 400,800,1600,3200 4
+//   Rato set dpi-default <n>
+//   Rato set rate <ms>
+//   Rato set led off | color RRGGBB | breathe RRGGBB | cycle
+//   Rato profiles | features | backup | restore <pasta> | mode host|onboard    só Logitech
+//   Rato selftest
 
 extension Drivers {
     /// Drivers de fabricante vêm antes; o genérico fica por último.
@@ -20,7 +20,7 @@ extension Drivers {
 
 enum CLI {
     static func run(_ cmd: String) -> Never {
-        hlog("MouseHIDpp — modo `\(cmd)`")
+        hlog("Rato — modo `\(cmd)`")
         if LogitechDriver.gHubAgentRunning() {
             guard !["restore", "mode"].contains(cmd) else {
                 hlog("feche o G HUB antes de gravar no mouse (lghub_agent rodando)")

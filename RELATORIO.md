@@ -143,6 +143,6 @@ Se o G HUB trava em "Loading applications", confira se existe `/Library/LaunchDa
 
 ## App
 
-`app/` é um executável Swift (`MouseHIDpp`). Sem argumentos, sobe na menu bar com a bateria e os submenus DPI, Polling e Luz, que gravam no perfil ativo. Na linha de comando, `state`, `profiles` e `features` só leem; `set`, `backup` e `restore` gravam.
+`app/` é um executável Swift (`Rato`). Sem argumentos, sobe na menu bar com a bateria e os submenus DPI, Polling e Luz, que gravam no perfil ativo. Na linha de comando, `state`, `profiles` e `features` só leem; `set`, `backup` e `restore` gravam.
 
 O G HUB precisa estar fechado. Os dois processos disputam o mesmo pipe, e o app recusa gravar com o `lghub_agent` rodando.

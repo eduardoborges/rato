@@ -2,12 +2,12 @@
 import PackageDescription
 
 let package = Package(
-    name: "MouseHIDpp",
+    name: "Rato",
     platforms: [.macOS(.v13)],
     targets: [
         .executableTarget(
-            name: "MouseHIDpp",
-            path: "Sources/MouseHIDpp",
+            name: "Rato",
+            path: "Sources/Rato",
             linkerSettings: [
                 .linkedFramework("IOKit"),
                 .linkedFramework("AppKit")

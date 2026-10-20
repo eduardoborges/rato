@@ -1,4 +1,4 @@
-# MouseHIDpp
+# Rato
 
 App de menu bar para macOS que ajusta DPI, polling e luz de um mouse Logitech e mostra a bateria. Fala HID++ direto com o mouse pelo IOHIDManager, sem o G HUB. O G HUB precisa estar fechado, porque os dois disputam o mesmo pipe HID.
 
@@ -30,23 +30,23 @@ Para não depender do `swift run`, compile em release e rode o binário:
 
 ```bash
 swift build -c release
-.build/release/MouseHIDpp
+.build/release/Rato
 ```
 
-No menu, cada mouse tem os submenus DPI, Polling e Luz. As mudanças vão para o perfil ativo na memória do mouse, como o G HUB faz, e continuam valendo com o app fechado e depois do sleep. Antes de cada gravação o app salva os setores do mouse em `~/Library/Application Support/MouseHIDpp/backups/`.
+No menu, cada mouse tem os submenus DPI, Polling e Luz. As mudanças vão para o perfil ativo na memória do mouse, como o G HUB faz, e continuam valendo com o app fechado e depois do sleep. Antes de cada gravação o app salva os setores do mouse em `~/Library/Application Support/Rato/backups/`.
 
 Os mesmos ajustes existem na linha de comando:
 
 ```bash
-swift run MouseHIDpp state                         # DPI, polling, modo e efeitos de LED
-swift run MouseHIDpp profiles                      # os 5 perfis gravados no mouse
-swift run MouseHIDpp set dpi 400,800,1600,3200 4   # níveis de DPI e qual deles é o padrão
-swift run MouseHIDpp set dpi-default 2
-swift run MouseHIDpp set rate 1                    # polling em ms: 1, 2, 4 ou 8
-swift run MouseHIDpp set led off                   # ou: color ff0000, breathe 00ff00, cycle
-swift run MouseHIDpp backup
-swift run MouseHIDpp restore <pasta do backup>
-swift run MouseHIDpp selftest                      # roteamento de drivers e bateria Bluetooth
+swift run Rato state                         # DPI, polling, modo e efeitos de LED
+swift run Rato profiles                      # os 5 perfis gravados no mouse
+swift run Rato set dpi 400,800,1600,3200 4   # níveis de DPI e qual deles é o padrão
+swift run Rato set dpi-default 2
+swift run Rato set rate 1                    # polling em ms: 1, 2, 4 ou 8
+swift run Rato set led off                   # ou: color ff0000, breathe 00ff00, cycle
+swift run Rato backup
+swift run Rato restore <pasta do backup>
+swift run Rato selftest                      # roteamento de drivers e bateria Bluetooth
 ```
 
 Para gravar, o G HUB precisa estar fechado. O app recusa enquanto o `lghub_agent` estiver rodando.
@@ -87,14 +87,14 @@ A previsão supõe uso contínuo. Parado, o mouse dorme e a bateria rende mais. 
 
 ## Outros mouses
 
-Cada fabricante tem um driver em `app/Sources/MouseHIDpp/Drivers/`. Hoje existem dois:
+Cada fabricante tem um driver em `app/Sources/Rato/Drivers/`. Hoje existem dois:
 
 | Driver | Mouses | O que faz |
 |---|---|---|
 | Logitech | HID++ 2.0, direto ou em receptor | bateria, DPI, polling, LED e backup dos perfis |
 | Genérico | qualquer mouse externo sem driver próprio | nome e, se for Bluetooth, bateria |
 
-O genérico nunca foi testado com um mouse de verdade, porque aqui só havia o G703. O parser de bateria foi conferido com dois teclados Bluetooth (`MouseHIDpp selftest`).
+O genérico nunca foi testado com um mouse de verdade, porque aqui só havia o G703. O parser de bateria foi conferido com dois teclados Bluetooth (`Rato selftest`).
 
 Para adicionar um fabricante:
 
