@@ -13,15 +13,7 @@ final class LogitechDriver: MouseDriver, MouseDriverType {
     private var dpi: HidppClient.DpiInfo?
     private var rates: [Int] = []
     private var ledKinds: [LedKind]?
-    /// Polling e LED do perfil ativo, para a previsão da bateria. Atualizado a cada leitura de ajustes.
-    private var profile: HidppClient.OnboardProfile?
-    /// nil se o G HUB não deixou um battery.xml para este mouse.
-    private lazy var powerModel: PowerModel? = {
-        let pids = Result { try client.modelPids() }
-        let m = (try? pids.get()).flatMap(PowerModel.load(pids:))
-        if m == nil { hlog("\(name): sem modelo de bateria do G HUB (PIDs: \(pids.map { $0.map { String(format: "0x%04x", $0) } }))") }
-        return m
-    }()
+    private var batteryModel: BatteryModel?
 
     init(bridge: HIDDeviceBridge, client: HidppClient, isReceiverSlot: Bool) {
         self.bridge = bridge
@@ -46,22 +38,17 @@ final class LogitechDriver: MouseDriver, MouseDriverType {
     func readBattery() throws -> BatteryState? {
         var b: BatteryState
         do { b = try client.readBattery() } catch HidppError.notSupported { return nil }
-        // Com o modelo do G HUB, a % sai da curva de descarga em vez da reta 3,4 → 4,12 V.
-        guard !b.charging, let mv = b.voltageMv, let m = powerModel else { return b }
-        let left = m.capacityMwh - m.usedMwh(volts: Double(mv) / 1000)
-        b.percent = Int((left / m.capacityMwh * 100).rounded())
-        if let p = profile ?? (try? client.activeProfile()) {
-            profile = p
-            let mw = m.powerMw(rateMs: p.reportRateMs, leds: p.leds.compactMap(LedEffect.init(hidppProfileBytes:)))
-            if mw > 0 { b.hoursLeft = left / mw }
-        }
+        guard let mv = b.voltageMv else { return b }
+        if batteryModel == nil, let pid = try? client.modelPids().first { batteryModel = BatteryModel(pid: pid) }
+        guard let e = batteryModel?.update(mv: mv, charging: b.charging) else { return b }
+        b.percent = e.percent
+        b.hoursLeft = b.charging ? nil : e.hoursLeft
         return b
     }
 
     func readSettings() throws -> MouseSettings? {
         guard client.tryFeature(HidppFeature.onboardProfiles.rawValue) != nil else { return nil }
         let p = try client.activeProfile()
-        profile = p
         if dpi == nil { dpi = try client.dpiInfo() }
         if rates.isEmpty { rates = try client.reportRates().supported }
         if ledKinds == nil {

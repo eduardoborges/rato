@@ -197,7 +197,6 @@ final class DeviceEngine: @unchecked Sendable {
                 hlog("\(t.label): \(error)")
             }
             t.refreshSettings()
-            t.refreshBattery() // a previsão de duração depende do polling e do LED
             t.busy = false
             self.notify()
         }

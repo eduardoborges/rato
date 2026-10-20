@@ -101,9 +101,8 @@ extension HidppClient {
             let charging = flags & 0x80 != 0
             let fault = Int(flags & 0x07)
             let st = charging ? "carregando" : (fault != 0 ? "fault 0x\(String(fault, radix: 16))" : "descarregando")
-            // Estimativa linear (Li-ion ~3.4 → 4.12 V); para AA/mV baixos não estimamos.
-            var pct: Int? = nil
-            if mv > 2200 { pct = max(0, min(100, ((mv - 3400) * 100) / (4120 - 3400))) }
+            // Curva genérica de Li-ion; para pilha AA (mV baixos) não estimamos.
+            let pct = mv > 2200 ? Int(BatteryModel.priorPercent(mv).rounded()) : nil
             return BatteryState(percent: pct, status: st, charging: charging, voltageMv: mv, approx: true, source: "0x1001")
         }
         throw HidppError.notSupported("device sem 0x1000/0x1001")

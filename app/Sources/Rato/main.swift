@@ -134,7 +134,7 @@ enum CLI {
     }
 }
 
-/// Confere o roteamento de drivers e o parser de bateria Bluetooth. Sai com erro se algo quebrar.
+/// Confere o roteamento de drivers, o parser de bateria Bluetooth e o modelo de bateria. Sai com erro se algo quebrar.
 func selftest() -> Never {
     precondition(Drivers.route(vendorID: 0x046D) == LogitechDriver.self, "Logitech vai para o driver HID++")
     precondition(Drivers.route(vendorID: 0x1532) == GenericDriver.self, "fabricante sem driver cai no genérico")
@@ -148,21 +148,18 @@ func selftest() -> Never {
     precondition(parsed.count == 2)
     precondition(parsed.filter { isMouse($0.minorType) } == [BluetoothBattery.Device(
         name: "MX Anywhere", minorType: "Mouse", vendorID: 0x046D, productID: 0xB023, percent: 80)])
-    let xml = """
-    <powermodel pid="0x4086"><battery><discharge><![CDATA[
-    0,4.2,0
-    1,4.0,50
-    2,3.6,100
-    ]]></discharge></battery><blocks><sensor power="1"/><mcu power="1"/>
-    <report_rate><interval milliseconds="1" power="2"/></report_rate>
-    <lighting mcu_load="1"><zone><effect type="off" power="0"/><effect type="cycling">
-    <brightness percent="50" power="2"/><brightness percent="100" power="4"/></effect></zone></lighting></blocks></powermodel>
-    """
-    let m = PowerModel(xml: Data(xml.utf8))!
-    precondition(m.pid == 0x4086 && m.capacityMwh == 100)
-    precondition(m.usedMwh(volts: 4.0) == 50 && abs(m.usedMwh(volts: 3.8) - 75) < 1e-9 && m.usedMwh(volts: 4.3) == 0, "interpola a curva")
-    precondition(m.powerMw(rateMs: 1, leds: [.off]) == 4)
-    precondition(m.powerMw(rateMs: 1, leds: [.cycle(periodMs: 8000, intensity: 75)]) == 8, "base 2 + polling 2 + LED 3 + carga 1")
+    let blank = BatteryModel(file: nil)
+    precondition(blank.update(mv: 3840, charging: false) == (50, nil), "sem aprender, % da curva genérica e sem horas")
+    // Descarga sintética: 20 mV a cada 15 min de uso, leitura a cada 30 s com ruído e um cochilo de 10 min a cada 50 leituras.
+    let m = BatteryModel(file: nil)
+    var clock = Date(timeIntervalSince1970: 0), used = 0.0, i = 0
+    while 4180 - Int(used / 900 * 20) >= 3500 {
+        _ = m.update(mv: 4180 - Int(used / 900 * 20) + (i * 37) % 17 - 8, charging: false, at: clock)
+        i += 1; used += 30; clock += i % 50 == 0 ? 630 : 30
+    }
+    let half = m.estimate(mv: 3840), low = m.estimate(mv: 3700)
+    precondition(abs(half.percent - 50) <= 3 && abs(half.hoursLeft! - 4.25) < 0.25, "aprende o ritmo: 50% e ~4,25 h no meio")
+    precondition(abs(low.percent - 29) <= 3, "a curva aprendida vence a genérica, que daria 10%")
     for d in BluetoothBattery.connected({ _ in true }) {
         print("    bluetooth : \(d.name) [\(d.minorType)] \(d.percent.map { "\($0)%" } ?? "sem bateria")")
     }
