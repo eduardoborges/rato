@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="100 100 824 824">
+  <defs>
+    <linearGradient id="led" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#38E1FF"/><stop offset="1" stop-color="#FF4FD8"/></linearGradient>
+  </defs>
+  <rect x="494" y="316" width="36" height="92" rx="18" fill="url(#led)"/>
+</svg>

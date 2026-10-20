@@ -1,0 +1,40 @@
+{
+  "fill": {
+    "linear-gradient": [
+      "srgb:0.98039,0.98039,0.98824,1.00000",
+      "srgb:0.85490,0.85490,0.87451,1.00000"
+    ]
+  },
+  "groups": [
+    {
+      "layers": [
+        {
+          "image-name": "wheel.svg",
+          "name": "wheel",
+          "glass": true
+        }
+      ]
+    },
+    {
+      "layers": [
+        {
+          "image-name": "mouse.svg",
+          "name": "mouse",
+          "glass": true
+        }
+      ]
+    },
+    {
+      "layers": [
+        {
+          "image-name": "tail.svg",
+          "name": "tail",
+          "glass": false
+        }
+      ]
+    }
+  ],
+  "supported-platforms": {
+    "squares": "shared"
+  }
+}

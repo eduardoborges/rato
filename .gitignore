@@ -4,3 +4,4 @@
 analysis/*.arm64
 .claude/settings.local.json
 mise.local.toml
+app/build/
