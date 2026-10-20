@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/eduardoborges/rato/compare/v0.1.0...v0.1.1) (2026-10-20)
+
+
+### Bug Fixes
+
+* find a mouse that was asleep when the app opened ([af409fd](https://github.com/eduardoborges/rato/commit/af409fd57004983744f5fd48ba9f2118bc83366c))
+
 ## 0.1.0 (2026-10-20)
 
 
