@@ -124,6 +124,10 @@ A curva mV→% do G HUB para devices que só têm `0x1001` ficou de fora. Em 392
 
 Os botões (16 entradas de 4 bytes no perfil, mais o `0x8110`) ainda não foram mapeados.
 
+## G HUB que não abre
+
+Se o G HUB trava em "Loading applications", confira se existe `/Library/LaunchDaemons/com.logi.ghub.updater.plist`. O `lghub_updater` roda como daemon (`--daemonized`) e serve HTTP local; sem ele, o `lghub_agent` fica esperando em `resources_helper::get_local_http_url` para cada modelo de device e a UI nunca termina de carregar. O `lghub_installer --silent` não repara, porque responde "Already installed!" enquanto `/Applications/lghub.app` existe. O que resolveu foi recriar o plist com `ProgramArguments` = `[lghub_updater, --daemonized]`, `RunAtLoad` e `KeepAlive`, e ativar com `launchctl bootstrap system`.
+
 ## App
 
 `app/` é um executável Swift (`MouseHIDpp`). Sem argumentos, sobe na menu bar com a bateria e os submenus DPI, Polling e Luz, que gravam no perfil ativo. Na linha de comando, `state`, `profiles` e `features` só leem; `set`, `backup` e `restore` gravam.
