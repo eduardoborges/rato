@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 
 // Modelo comum a todos os drivers. A UI e a linha de comando só conhecem estes tipos.
@@ -128,6 +129,11 @@ final class MouseTarget: @unchecked Sendable {
         case .failure(let e): _batteryErr = String(describing: e)
         }
         stateLock.unlock()
+        if case .failure(let e) = result {
+            // O tempo parado separa o mouse dormindo das outras falhas.
+            let idle = CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: .mouseMoved)
+            hlog("\(label): bateria falhou (\(e)), mouse parado há \(Int(idle)) s")
+        }
     }
 
     func refreshSettings() {

@@ -145,9 +145,11 @@ final class DeviceEngine: @unchecked Sendable {
 
     private func deviceRemoved(_ device: IOHIDDevice) {
         lock.lock()
+        let gone = bridges.first { $0.device == device }
         targets.removeAll { $0.bridge.device == device }
         bridges.removeAll { $0.device == device }
         lock.unlock()
+        hlog("- \(gone?.desc ?? "?")")
         notify()
     }
 
