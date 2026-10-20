@@ -51,7 +51,20 @@ Dois features, o primeiro que existir.
 
 `0x1000` BATTERY_LEVEL_STATUS, função 0, sem payload. Resposta de 3 bytes: `level` (0–100; `0xFF` = desconhecido), `nextLevel`, `status`. Status visto no G HUB: 0 descarregando, 1 carregando, 2 quase cheia, 3 cheia, 4 erro de carga.
 
-`0x1001` BATTERY_VOLTAGE, função 0, sem payload. Resposta: tensão em mV, big-endian 16 bits, mais um byte de flags. Bit 7 = carregando. Bits 0–2 = código de falha. O mouse desta máquina só expõe `0x1001`. A porcentagem é uma reta de Li-ion entre 3400 mV e 4120 mV, por isso o app marca `≈`. O G HUB usa uma curva própria (`wireless::BatteryCache`); ela não foi extraída.
+`0x1001` BATTERY_VOLTAGE, função 0, sem payload. Resposta: tensão em mV, big-endian 16 bits, mais um byte de flags. Bit 7 = carregando. Bits 0–2 = código de falha. O mouse desta máquina só expõe `0x1001`. O G HUB tira a porcentagem de uma curva de descarga por modelo de mouse (abaixo). Sem ela, o app usa uma reta de Li-ion entre 3400 mV e 4120 mV. O app marca `≈` nos dois casos.
+
+### Modelo de consumo (battery.xml)
+
+O G HUB baixa para cada mouse um `battery.xml`, em `/Library/Application Support/Logi/LGHUB/depots/<id>/<mouse>/`. No agent, quem lê o arquivo é o `battery_model_voltage` (`get_voltage_discharge_map`, `get_voltage_soc_map`).
+
+- A raiz `<powermodel vid pid>` traz o PID sem fio do mouse; o do G703 é `0x4086`. O app pega os PIDs pela feature `0x0003`, função 0: o modelId fica nos bytes 7 a 12 da resposta, um PID de 2 bytes por transporte. O G703 responde `0x4086` e `0xc090`.
+- `<discharge>`: linhas `minutos,tensão em V,mWh gastos`. No G703 são 707 pontos, de 4,186 V a 3,479 V, com 904 mWh no total.
+- `<blocks>`: consumo em mW. `sensor` e `mcu` são fixos, `report_rate` tem um valor por intervalo e `lighting` tem um valor por zona, efeito (`off`, `solid`, `cycling`, `breathing`) e brilho. O `mcu_load` entra quando algum LED está aceso.
+- `<charging>` e `<charging_time_slots>` vêm vazios no G703.
+
+Horas restantes = (total − mWh gastos na tensão lida) ÷ soma dos blocos. O agent tira a média de várias leituras de tensão (`average_voltage_sample_count`); o app usa uma leitura só. Para cor fixa, o app usa o canal mais forte como brilho, e o G HUB pode calcular de outro jeito.
+
+O arquivo não é XML válido: tem `--` dentro de um comentário, e o `XMLDocument` recusa. O app tira os comentários antes do parse.
 
 ## LED
 

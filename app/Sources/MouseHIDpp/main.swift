@@ -148,6 +148,21 @@ func selftest() -> Never {
     precondition(parsed.count == 2)
     precondition(parsed.filter { isMouse($0.minorType) } == [BluetoothBattery.Device(
         name: "MX Anywhere", minorType: "Mouse", vendorID: 0x046D, productID: 0xB023, percent: 80)])
+    let xml = """
+    <powermodel pid="0x4086"><battery><discharge><![CDATA[
+    0,4.2,0
+    1,4.0,50
+    2,3.6,100
+    ]]></discharge></battery><blocks><sensor power="1"/><mcu power="1"/>
+    <report_rate><interval milliseconds="1" power="2"/></report_rate>
+    <lighting mcu_load="1"><zone><effect type="off" power="0"/><effect type="cycling">
+    <brightness percent="50" power="2"/><brightness percent="100" power="4"/></effect></zone></lighting></blocks></powermodel>
+    """
+    let m = PowerModel(xml: Data(xml.utf8))!
+    precondition(m.pid == 0x4086 && m.capacityMwh == 100)
+    precondition(m.usedMwh(volts: 4.0) == 50 && abs(m.usedMwh(volts: 3.8) - 75) < 1e-9 && m.usedMwh(volts: 4.3) == 0, "interpola a curva")
+    precondition(m.powerMw(rateMs: 1, leds: [.off]) == 4)
+    precondition(m.powerMw(rateMs: 1, leds: [.cycle(periodMs: 8000, intensity: 75)]) == 8, "base 2 + polling 2 + LED 3 + carga 1")
     for d in BluetoothBattery.connected({ _ in true }) {
         print("    bluetooth : \(d.name) [\(d.minorType)] \(d.percent.map { "\($0)%" } ?? "sem bateria")")
     }

@@ -62,6 +62,12 @@ Para gravar, o G HUB precisa estar fechado. O app recusa enquanto o `lghub_agent
 
 O item "Mostrar porcentagem" do menu liga e desliga o número ao lado do ícone, e a escolha fica salva entre execuções.
 
+## Previsão de duração
+
+A linha da bateria no menu mostra quanto tempo de uso ainda resta, por exemplo `≈68%  •  descarregando  •  ~24 h de uso`. O número vem do `battery.xml` que o G HUB baixa para cada mouse, em `/Library/Application Support/Logi/LGHUB/depots/*/<mouse>/`. A curva de descarga desse arquivo dá a energia que sobra na tensão atual, e o consumo de sensor, MCU, polling e LED do perfil ativo diz quanto ela dura. No G703 com bateria cheia e polling de 1 ms, a conta dá 34,5 h com o LED no máximo e 60,6 h com ele apagado. A Logitech anuncia 35 h e 60 h.
+
+A previsão supõe uso contínuo. Parado, o mouse dorme e a bateria rende mais. Sem o G HUB instalado não há `battery.xml`, e o app mostra só a porcentagem. O arquivo é da Logitech e fica fora do repo: o app só o lê do disco.
+
 ## Problemas comuns
 
 | Sintoma | O que fazer |
@@ -75,7 +81,7 @@ O item "Mostrar porcentagem" do menu liga e desliga o número ao lado do ícone,
 - Os botões ainda não são configuráveis.
 - O LED usa o mesmo efeito nas duas zonas do G703.
 - No menu, as cores são uma paleta fixa e ciclo e respiração usam 8 s e 4 s com intensidade 100%. Outra cor só pela linha de comando.
-- A porcentagem no `0x1001` é uma reta entre 3400 e 4120 mV, não a curva do G HUB.
+- Sem o G HUB instalado, a porcentagem no `0x1001` é uma reta entre 3400 e 4120 mV e não há previsão de duração.
 - Um mouse por receptor: o primeiro slot que responde.
 - O app não abre sozinho no login.
 

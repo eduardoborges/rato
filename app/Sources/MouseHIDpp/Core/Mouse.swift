@@ -9,12 +9,19 @@ struct BatteryState: CustomStringConvertible {
     var voltageMv: Int?
     var approx: Bool         // true se a % é estimada pela tensão
     var source: String       // de onde veio: "0x1001", "bluetooth"...
+    var hoursLeft: Double? = nil  // em uso contínuo, se o driver souber estimar
+
+    /// "~24 h de uso", "~40 min de uso".
+    var timeLeftText: String? {
+        hoursLeft.map { $0 < 1 ? "~\(Int($0 * 60)) min de uso" : "~\(Int($0.rounded())) h de uso" }
+    }
 
     var description: String {
         var head = "bateria[\(source)]"
         if let p = percent { head += " \(approx ? "≈" : "")\(p)%" }
         if let mv = voltageMv { head += " (\(mv)mV)" }
         if !status.isEmpty { head += " • \(status)" }
+        if let t = timeLeftText { head += " • \(t)" }
         return head
     }
 }
