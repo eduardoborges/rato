@@ -33,6 +33,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         batteryTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { _ in
+            // Um mouse que dormia na abertura não respondeu ao handshake. O rescan só sonda de novo quem ficou sem mouse.
+            DeviceEngine.shared.rescan()
             DeviceEngine.shared.refreshAllBatteries()
         }
     }
