@@ -36,7 +36,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private static func batterySymbol(_ b: BatteryState) -> String {
-        if b.status == "carregando" { return "battery.100percent.bolt" }
+        if b.charging { return "battery.100percent.bolt" }
         guard let p = b.percent else { return "battery.50percent" }
         return "battery.\(min(100, (p + 12) / 25 * 25))percent"
     }
@@ -127,8 +127,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     busy.isEnabled = false
                     menu.addItem(busy)
                 }
-                if let p = t.profile {
-                    profileItems(t, p).forEach(menu.addItem)
+                if let s = t.settings {
+                    settingsItems(t, s).forEach(menu.addItem)
                 }
                 if let msg = t.lastAction {
                     let warn = NSMenuItem(title: msg, action: nil, keyEquivalent: "")
@@ -162,8 +162,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private final class ProfileAction: NSObject {
         let target: MouseTarget
-        let change: HidppClient.ProfileChange
-        init(_ t: MouseTarget, _ c: HidppClient.ProfileChange) { target = t; change = c }
+        let change: SettingChange
+        init(_ t: MouseTarget, _ c: SettingChange) { target = t; change = c }
     }
 
     private static let colors: [(String, UInt8, UInt8, UInt8)] = [
@@ -180,7 +180,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func changeItem(_ title: String, _ t: MouseTarget, _ c: HidppClient.ProfileChange, on: Bool) -> NSMenuItem {
+    private func changeItem(_ title: String, _ t: MouseTarget, _ c: SettingChange, on: Bool) -> NSMenuItem {
         let i = NSMenuItem(title: title, action: #selector(applyChange(_:)), keyEquivalent: "")
         i.target = self
         i.representedObject = ProfileAction(t, c)
@@ -196,11 +196,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return i
     }
 
-    private func profileItems(_ t: MouseTarget, _ p: HidppClient.OnboardProfile) -> [NSMenuItem] {
-        let levels = p.dpis.filter { $0 > 0 }
+    private func settingsItems(_ t: MouseTarget, _ s: MouseSettings) -> [NSMenuItem] {
+        var items: [NSMenuItem] = []
+        let levels = s.dpiLevels
         let dpi = NSMenu()
         for (i, v) in levels.enumerated() {
-            dpi.addItem(changeItem("\(v) DPI", t, .dpiDefault(i), on: i == p.defaultDpiIndex))
+            dpi.addItem(changeItem("\(v) DPI", t, .dpiDefault(i), on: i == s.defaultDpiIndex))
         }
         dpi.addItem(.separator())
         let edit = NSMenuItem(title: "Editar níveis…", action: #selector(editDpi(_:)), keyEquivalent: "")
@@ -209,12 +210,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         edit.isEnabled = !t.busy
         dpi.addItem(edit)
 
-        let rate = NSMenu()
-        for ms in t.reportRates.sorted(by: >) {
-            rate.addItem(changeItem("\(1000 / ms) Hz", t, .rate(ms: ms), on: ms == p.reportRateMs))
+        if !levels.isEmpty {
+            let current = levels.indices.contains(s.defaultDpiIndex) ? "\(levels[s.defaultDpiIndex]) DPI" : "?"
+            items.append(submenu("DPI: \(current)", "cursorarrow.motionlines", dpi))
         }
 
-        let cur = HidppClient.LedEffect(profileBytes: p.leds[0])
+        let rate = NSMenu()
+        for ms in s.supportedRatesMs.sorted(by: >) {
+            rate.addItem(changeItem("\(1000 / ms) Hz", t, .rate(ms: ms), on: ms == s.reportRateMs))
+        }
+        if !s.supportedRatesMs.isEmpty {
+            items.append(submenu("Polling: \(1000 / max(1, s.reportRateMs)) Hz", "speedometer", rate))
+        }
+
+        guard !s.ledKinds.isEmpty else { return items }
+        let cur = s.led
         var color: (UInt8, UInt8, UInt8)?
         var breath = (periodMs: 4000, intensity: 100)
         var cycle = (periodMs: 8000, intensity: 100)
@@ -228,26 +238,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         let base = color ?? (0xff, 0xff, 0xff)
         let led = NSMenu()
-        led.addItem(changeItem("Desligada", t, .led(.off), on: ledName == "Desligada"))
-        led.addItem(changeItem("Ciclo de cores", t, .led(.cycle(periodMs: cycle.periodMs, intensity: cycle.intensity)),
-                               on: ledName == "Ciclo de cores"))
-        led.addItem(changeItem("Respiração", t, .led(.breathe(base.0, base.1, base.2, periodMs: breath.periodMs,
-                                                              intensity: breath.intensity)), on: ledName == "Respiração"))
+        if s.ledKinds.contains(.off) {
+            led.addItem(changeItem("Desligada", t, .led(.off), on: ledName == "Desligada"))
+        }
+        if s.ledKinds.contains(.cycle) {
+            led.addItem(changeItem("Ciclo de cores", t, .led(.cycle(periodMs: cycle.periodMs, intensity: cycle.intensity)),
+                                   on: ledName == "Ciclo de cores"))
+        }
+        if s.ledKinds.contains(.breathe) {
+            led.addItem(changeItem("Respiração", t, .led(.breathe(base.0, base.1, base.2, periodMs: breath.periodMs,
+                                                                  intensity: breath.intensity)), on: ledName == "Respiração"))
+        }
         led.addItem(.separator())
-        for (name, r, g, b) in Self.colors {
-            let e: HidppClient.LedEffect = ledName == "Respiração"
+        for (name, r, g, b) in Self.colors where s.ledKinds.contains(.fixed) || s.ledKinds.contains(.breathe) {
+            let e: LedEffect = ledName == "Respiração"
                 ? .breathe(r, g, b, periodMs: breath.periodMs, intensity: breath.intensity) : .fixed(r, g, b)
             let i = changeItem(name, t, .led(e), on: color.map { $0 == (r, g, b) } ?? false)
             i.image = Self.swatch(r, g, b)
             led.addItem(i)
         }
 
-        let current = levels.indices.contains(p.defaultDpiIndex) ? "\(levels[p.defaultDpiIndex]) DPI" : "?"
-        return [
-            submenu("DPI: \(current)", "cursorarrow.motionlines", dpi),
-            submenu("Polling: \(1000 / max(1, p.reportRateMs)) Hz", "speedometer", rate),
-            submenu("Luz: \(ledName)", "lightbulb", led),
-        ]
+        items.append(submenu("Luz: \(ledName)", "lightbulb", led))
+        return items
     }
 
     // MARK: Ações
@@ -258,11 +270,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func editDpi(_ sender: NSMenuItem) {
-        guard let t = sender.representedObject as? MouseTarget, let p = t.profile else { return }
-        let levels = p.dpis.filter { $0 > 0 }
+        guard let t = sender.representedObject as? MouseTarget, let s = t.settings else { return }
+        let levels = s.dpiLevels
         let alert = NSAlert()
         alert.messageText = "Níveis de DPI"
-        alert.informativeText = "Até 5 valores separados por vírgula."
+        let range = s.dpiRange.map { ", de \($0.lowerBound) a \($0.upperBound) em passos de \(s.dpiStep)" } ?? ""
+        alert.informativeText = "Até 5 valores separados por vírgula\(range)."
         let field = NSTextField(string: levels.map(String.init).joined(separator: ", "))
         field.frame = NSRect(x: 0, y: 0, width: 240, height: 24)
         alert.accessoryView = field
@@ -272,7 +285,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         let new = field.stringValue.split(whereSeparator: { $0 == "," || $0 == " " }).compactMap { Int($0) }
         guard !new.isEmpty else { return }
-        let current = levels.indices.contains(p.defaultDpiIndex) ? levels[p.defaultDpiIndex] : nil
+        let current = levels.indices.contains(s.defaultDpiIndex) ? levels[s.defaultDpiIndex] : nil
         let def = current.flatMap { new.firstIndex(of: $0) } ?? new.count - 1
         DeviceEngine.shared.apply(.dpi(levels: new, defaultIndex: def), to: t)
     }

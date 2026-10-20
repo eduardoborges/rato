@@ -1,22 +1,28 @@
 import Foundation
 import AppKit
 
-// MouseHIDpp: DPI, polling, LED e bateria de mouse Logitech por HID++ (IOHIDManager, sem G HUB).
+// MouseHIDpp: bateria, DPI, polling e LED de mouses por HID. Cada fabricante tem um driver
+// em Drivers/; mouse sem driver próprio cai no genérico, que só mostra a bateria Bluetooth.
 //
 //   MouseHIDpp                                   menu bar
-//   MouseHIDpp probe | state | profiles | features
+//   MouseHIDpp probe | state                     qualquer mouse
 //   MouseHIDpp set dpi <níveis> <padrão>         ex.: set dpi 400,800,1600,3200 4
 //   MouseHIDpp set dpi-default <n>
 //   MouseHIDpp set rate <ms>
 //   MouseHIDpp set led off | color RRGGBB | breathe RRGGBB | cycle
-//   MouseHIDpp backup | restore <pasta>
-//   MouseHIDpp mode host | onboard
+//   MouseHIDpp profiles | features | backup | restore <pasta> | mode host|onboard    só Logitech
+//   MouseHIDpp selftest
+
+extension Drivers {
+    /// Drivers de fabricante vêm antes; o genérico fica por último.
+    static let all: [MouseDriverType.Type] = [LogitechDriver.self, GenericDriver.self]
+}
 
 enum CLI {
     static func run(_ cmd: String) -> Never {
         hlog("MouseHIDpp — modo `\(cmd)`")
-        if gHubAgentRunning() {
-            guard !["set", "restore", "mode"].contains(cmd) else {
+        if LogitechDriver.gHubAgentRunning() {
+            guard !["restore", "mode"].contains(cmd) else {
                 hlog("feche o G HUB antes de gravar no mouse (lghub_agent rodando)")
                 exit(75)
             }
@@ -26,51 +32,51 @@ enum CLI {
         let engine = DeviceEngine.shared
         engine.start()
         _ = engine.scan(waitSeconds: 20)
-        let targets = engine.snapshot().filter { t in
-            if case .none = t.lighting { return t.battery != nil }
-            return true
-        }
+        let targets = engine.snapshot()
         guard !targets.isEmpty else {
-            hlog("nenhum device Logitech com HID++ respondendo (mouse no USB/BT? G HUB encerrado?)")
+            hlog("nenhum mouse encontrado (Logitech sem resposta? G HUB aberto?)")
             exit(2)
         }
+        let logitech = targets.compactMap { $0.driver as? LogitechDriver }
 
         switch cmd {
         case "probe":
-            hlog("\(targets.count) dispositivo(s) HID++:")
+            hlog("\(targets.count) mouse(s):")
             for t in targets {
                 print("=== \(t.label)")
-                print("    hw        : \(t.bridge.description)")
+                t.driver.details.forEach { print("    \($0)") }
                 if let b = t.battery { print("    bateria   : \(b)") }
                 else if let err = t.batteryErr { print("    bateria   : ERRO \(err)") }
                 else { print("    bateria   : n/a") }
-                print("    lighting  : \(t.lighting.description)")
             }
         case "state":
             for t in targets {
-                let c = t.client
                 print("=== \(t.label)")
-                do {
-                    let d = try c.dpiInfo()
-                    let range = d.step.map { "\(d.min)...\(d.max) passo \($0)" } ?? d.list.map(String.init).joined(separator: ", ")
-                    print("    dpi       : \(d.current) (padrão \(d.defaultDpi); \(range))")
-                } catch { print("    dpi       : ERRO \(error)") }
-                do {
-                    let r = try c.reportRates()
-                    print("    polling   : \(r.current) ms (aceita \(r.supported.map { "\($0)" }.joined(separator: "/")) ms)")
-                } catch { print("    polling   : ERRO \(error)") }
-                do {
-                    let o = try c.onboardInfo()
-                    let mode = o.mode == 1 ? "onboard" : o.mode == 2 ? "host" : "0x\(String(o.mode, radix: 16))"
-                    print("    onboard   : modo \(mode), perfil \(o.currentProfile) de \(o.profiles), \(o.buttons) botões, setor \(o.sectorSize) B")
-                } catch { print("    onboard   : ERRO \(error)") }
-                do {
-                    for cl in try c.ledClusters() {
-                        let fx = cl.effects.map { String(format: "0x%02x", $0) }.joined(separator: " ")
-                        print("    led clu\(cl.index) : local \(cl.location), efeitos [\(fx)]")
+                if let s = t.settings {
+                    let levels = s.dpiLevels.enumerated().map { $0.offset == s.defaultDpiIndex ? "[\($0.element)]" : "\($0.element)" }
+                    let range = s.dpiRange.map { "; aceita \($0.lowerBound)...\($0.upperBound) passo \(s.dpiStep)" } ?? ""
+                    print("    dpi       : \(levels.joined(separator: " "))\(range)")
+                    print("    polling   : \(s.reportRateMs) ms (aceita \(s.supportedRatesMs.map(String.init).joined(separator: "/")) ms)")
+                    print("    led       : \(s.led.map { "\($0)" } ?? "?") (aceita \(s.ledKinds.map { "\($0)" }.joined(separator: ", ")))")
+                } else {
+                    print("    ajustes   : nenhum (driver só lê)")
+                }
+                if let lg = t.driver as? LogitechDriver {
+                    if let d = try? lg.client.dpiInfo() { print("    dpi agora : \(d.current)") }
+                    if let o = try? lg.client.onboardInfo() {
+                        print("    onboard   : modo \(o.mode == 1 ? "onboard" : o.mode == 2 ? "host" : "?"), perfil \(o.currentProfile) de \(o.profiles)")
                     }
-                } catch { print("    led       : ERRO \(error)") }
+                }
                 if let b = t.battery { print("    bateria   : \(b)") }
+            }
+        case "set":
+            guard let change = parseChange(args) else {
+                hlog("uso: set dpi <níveis> <padrão> | dpi-default <n> | rate <ms> | led off|color RRGGBB|breathe RRGGBB|cycle")
+                exit(64)
+            }
+            for t in targets {
+                do { try t.driver.apply(change); hlog("\(t.label): ok") }
+                catch { hlog("\(t.label): ERRO \(error)") }
             }
         case "mode":
             let host: Bool
@@ -79,15 +85,15 @@ enum CLI {
             case "onboard": host = false
             default: hlog("uso: mode host|onboard"); exit(64)
             }
-            for t in targets {
-                do { try t.client.setOnboardMode(host: host); hlog("\(t.label): modo \(host ? "host" : "onboard") ok") }
-                catch { hlog("\(t.label): modo ERRO \(error)") }
+            for lg in logitech {
+                do { try lg.client.setOnboardMode(host: host); hlog("\(lg.name): modo \(host ? "host" : "onboard") ok") }
+                catch { hlog("\(lg.name): modo ERRO \(error)") }
             }
         case "profiles":
-            for t in targets {
-                print("=== \(t.label)")
+            for lg in logitech {
+                print("=== \(lg.name)")
                 do {
-                    for (i, pr) in try t.client.onboardProfiles().enumerated() {
+                    for (i, pr) in try lg.client.onboardProfiles().enumerated() {
                         let dpis = pr.dpis.enumerated().map { $0.offset == pr.defaultDpiIndex ? "[\($0.element)]" : "\($0.element)" }
                         print(String(format: "    perfil %d @0x%04x %@ crc %@: %d ms, dpi %@ (shift: nível %d)",
                                      i + 1, pr.address, pr.enabled ? "ativo" : "inativo", pr.crcOk ? "ok" : "RUIM",
@@ -99,36 +105,27 @@ enum CLI {
                 }
             }
         case "features":
-            for t in targets {
-                print("=== \(t.label)")
+            for lg in logitech {
+                print("=== \(lg.name)")
                 do {
-                    for f in try t.client.listFeatures() {
+                    for f in try lg.client.listFeatures() {
                         print(String(format: "    0x%02x  0x%04x  v%u  tipo 0x%02x", f.index, f.id, f.version, f.type))
                     }
                 } catch {
                     print("    ERRO \(error)")
                 }
             }
-        case "set":
-            guard let change = parseChange(args) else {
-                hlog("uso: set dpi <níveis> <padrão> | dpi-default <n> | rate <ms> | led off|color RRGGBB|breathe RRGGBB|cycle")
-                exit(64)
-            }
-            for t in targets {
-                do { hlog("\(t.label): gravado (backup em \(try t.client.apply(change).path))") }
-                catch { hlog("\(t.label): ERRO \(error)") }
-            }
         case "backup":
-            for t in targets {
+            for lg in logitech {
                 let dir = newBackupDir()
-                do { try t.client.backupSectors(to: dir); hlog("\(t.label): backup em \(dir.path)") }
-                catch { hlog("\(t.label): ERRO \(error)") }
+                do { try lg.client.backupSectors(to: dir); hlog("\(lg.name): backup em \(dir.path)") }
+                catch { hlog("\(lg.name): ERRO \(error)") }
             }
         case "restore":
             guard let path = args.first else { hlog("uso: restore <pasta do backup>"); exit(64) }
-            for t in targets {
-                do { try t.client.restoreSectors(from: URL(fileURLWithPath: path)); hlog("\(t.label): restaurado de \(path)") }
-                catch { hlog("\(t.label): ERRO \(error)") }
+            for lg in logitech {
+                do { try lg.client.restoreSectors(from: URL(fileURLWithPath: path)); hlog("\(lg.name): restaurado de \(path)") }
+                catch { hlog("\(lg.name): ERRO \(error)") }
             }
         default:
             break
@@ -137,7 +134,28 @@ enum CLI {
     }
 }
 
-func parseChange(_ a: [String]) -> HidppClient.ProfileChange? {
+/// Confere o roteamento de drivers e o parser de bateria Bluetooth. Sai com erro se algo quebrar.
+func selftest() -> Never {
+    precondition(Drivers.route(vendorID: 0x046D) == LogitechDriver.self, "Logitech vai para o driver HID++")
+    precondition(Drivers.route(vendorID: 0x1532) == GenericDriver.self, "fabricante sem driver cai no genérico")
+    precondition(Drivers.route(vendorID: 0, in: [LogitechDriver.self]) == nil, "sem genérico, nada é roteado")
+    let json = """
+    {"SPBluetoothDataType":[{"device_connected":[
+      {"MX Anywhere":{"device_minorType":"Mouse","device_vendorID":"0x046D","device_productID":"0xB023","device_batteryLevelMain":"80%"}},
+      {"Tally":{"device_minorType":"Keyboard","device_vendorID":"0x02E5","device_batteryLevelMain":"100%"}}]}]}
+    """
+    let parsed = BluetoothBattery.parse(Data(json.utf8))
+    precondition(parsed.count == 2)
+    precondition(parsed.filter { isMouse($0.minorType) } == [BluetoothBattery.Device(
+        name: "MX Anywhere", minorType: "Mouse", vendorID: 0x046D, productID: 0xB023, percent: 80)])
+    for d in BluetoothBattery.connected({ _ in true }) {
+        print("    bluetooth : \(d.name) [\(d.minorType)] \(d.percent.map { "\($0)%" } ?? "sem bateria")")
+    }
+    print("selftest ok")
+    exit(0)
+}
+
+func parseChange(_ a: [String]) -> SettingChange? {
     func rgb(_ h: String?) -> (UInt8, UInt8, UInt8)? {
         guard let h, h.count == 6, let v = UInt32(h, radix: 16) else { return nil }
         return (UInt8(v >> 16), UInt8(v >> 8 & 0xff), UInt8(v & 0xff))
@@ -171,6 +189,7 @@ func startMenuBarApp() -> Never {
 }
 
 switch CommandLine.arguments.dropFirst().first {
+case "selftest": selftest()
 case let c? where ["probe", "state", "profiles", "features", "set", "backup", "restore", "mode"].contains(c): CLI.run(c)
 default: startMenuBarApp()
 }

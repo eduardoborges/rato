@@ -14,7 +14,7 @@ enum HIDBridgeError: Error, CustomStringConvertible {
     }
 }
 
-/// Envoltório de um IOHIDDevice (interface Logitech vendor 0x046d) — modo compartilhado.
+/// Envoltório de um IOHIDDevice, aberto em modo compartilhado quando o driver precisa falar com ele.
 final class HIDDeviceBridge: @unchecked Sendable {
     let device: IOHIDDevice
     /// Runloop que carrega os callbacks de input (thread HID dedicada).
@@ -57,6 +57,7 @@ final class HIDDeviceBridge: @unchecked Sendable {
     var productName: String { (IOHIDDeviceGetProperty(device, "Product" as CFString) as? String) ?? "<\(vidpid)>" }
     var serial: String { (IOHIDDeviceGetProperty(device, "SerialNumber" as CFString) as? String) ?? "-" }
     var vidpid: String { String(format: "0x%04x/0x%04x", vendorId, productId) }
+    var builtIn: Bool { (IOHIDDeviceGetProperty(device, "Built-In" as CFString) as? NSNumber)?.boolValue ?? false }
     var locationId: Int { (IOHIDDeviceGetProperty(device, "LocationID" as CFString) as? NSNumber)?.intValue ?? 0 }
     var maxIn: Int { (IOHIDDeviceGetProperty(device, "MaxInputReportSize" as CFString) as? NSNumber)?.intValue ?? 0 }
     var maxOut: Int { (IOHIDDeviceGetProperty(device, "MaxOutputReportSize" as CFString) as? NSNumber)?.intValue ?? 0 }

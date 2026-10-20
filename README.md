@@ -46,6 +46,7 @@ swift run MouseHIDpp set rate 1                    # polling em ms: 1, 2, 4 ou 8
 swift run MouseHIDpp set led off                   # ou: color ff0000, breathe 00ff00, cycle
 swift run MouseHIDpp backup
 swift run MouseHIDpp restore <pasta do backup>
+swift run MouseHIDpp selftest                      # roteamento de drivers e bateria Bluetooth
 ```
 
 Para gravar, o G HUB precisa estar fechado. O app recusa enquanto o `lghub_agent` estiver rodando.
@@ -78,6 +79,25 @@ O item "Mostrar porcentagem" do menu liga e desliga o número ao lado do ícone,
 - Um mouse por receptor: o primeiro slot que responde.
 - O app não abre sozinho no login.
 
+## Outros mouses
+
+Cada fabricante tem um driver em `app/Sources/MouseHIDpp/Drivers/`. Hoje existem dois:
+
+| Driver | Mouses | O que faz |
+|---|---|---|
+| Logitech | HID++ 2.0, direto ou em receptor | bateria, DPI, polling, LED e backup dos perfis |
+| Genérico | qualquer mouse externo sem driver próprio | nome e, se for Bluetooth, bateria |
+
+O genérico nunca foi testado com um mouse de verdade, porque aqui só havia o G703. O parser de bateria foi conferido com dois teclados Bluetooth (`MouseHIDpp selftest`).
+
+Para adicionar um fabricante:
+
+1. Crie `Drivers/<Marca>/` com uma classe que implementa `MouseDriver` e `MouseDriverType`, com os vendor IDs da marca em `vendorIDs`.
+2. Em `probe`, reconheça a interface HID certa e devolva um driver por mouse; para as outras interfaces, devolva vazio.
+3. Coloque a classe em `Drivers.all`, antes do `GenericDriver`.
+
+A UI e a linha de comando mostram DPI, Polling e Luz conforme o que `readSettings()` devolver.
+
 ## Análise com REA
 
 O repo traz o [REA](https://github.com/morluto/rea) configurado para o Claude Code, sem mexer na configuração global. O mise instala Node, Java 21, Ghidra 12.1.4 e o próprio REA:
@@ -95,7 +115,7 @@ Framing HID++, descoberta de features, bateria e a receita do LED estão em [REL
 
 ## Layout
 
-- `app/`: o executável Swift
+- `app/`: o executável Swift; `Core/` tem o modelo comum e o engine HID, `Drivers/` um driver por fabricante
 - `RELATORIO.md`: o protocolo, passo a passo
 - `mise.toml`: versões das ferramentas de análise
 - `.mcp.json` e `.claude/`: o REA no Claude Code

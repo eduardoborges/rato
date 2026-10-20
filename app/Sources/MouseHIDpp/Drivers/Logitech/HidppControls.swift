@@ -219,15 +219,8 @@ extension HidppClient {
         return dir
     }
 
-    enum ProfileChange {
-        case dpi(levels: [Int], defaultIndex: Int)
-        case dpiDefault(Int)
-        case rate(ms: Int)
-        case led(LedEffect)
-    }
-
     @discardableResult
-    func apply(_ change: ProfileChange) throws -> URL {
+    func apply(_ change: SettingChange) throws -> URL {
         switch change {
         case let .dpi(levels, def):
             let sensor = try dpiInfo()
@@ -269,41 +262,8 @@ extension HidppClient {
         d[1] = UInt8(defaultIndex)
     }
 
-    enum LedEffect: Equatable {
-        case off
-        case fixed(UInt8, UInt8, UInt8)
-        case breathe(UInt8, UInt8, UInt8, periodMs: Int, intensity: Int)
-        case cycle(periodMs: Int, intensity: Int)
-
-        /// 11 bytes no formato do perfil: ID do efeito e parâmetros (layout do libratbag).
-        var profileBytes: [UInt8] {
-            var b = [UInt8](repeating: 0, count: 11)
-            switch self {
-            case .off: break
-            case let .fixed(r, g, bl):
-                b[0] = 0x01; b[1] = r; b[2] = g; b[3] = bl
-            case let .breathe(r, g, bl, p, i):
-                b[0] = 0x0a; b[1] = r; b[2] = g; b[3] = bl
-                b[4] = UInt8(p >> 8); b[5] = UInt8(p & 0xff); b[7] = UInt8(i)
-            case let .cycle(p, i):
-                b[0] = 0x03; b[6] = UInt8(p >> 8); b[7] = UInt8(p & 0xff); b[8] = UInt8(i)
-            }
-            return b
-        }
-
-        init?(profileBytes b: [UInt8]) {
-            switch b[0] {
-            case 0x00: self = .off
-            case 0x01: self = .fixed(b[1], b[2], b[3])
-            case 0x0a: self = .breathe(b[1], b[2], b[3], periodMs: Int(b[4]) << 8 | Int(b[5]), intensity: b[7] == 0 ? 100 : Int(b[7]))
-            case 0x03: self = .cycle(periodMs: Int(b[6]) << 8 | Int(b[7]), intensity: b[8] == 0 ? 100 : Int(b[8]))
-            default: return nil
-            }
-        }
-    }
-
     static func setLed(_ e: LedEffect, in d: inout [UInt8]) {
-        let b = e.profileBytes
+        let b = e.hidppProfileBytes
         d.replaceSubrange(208..<219, with: b)
         d.replaceSubrange(219..<230, with: b)
     }
@@ -363,6 +323,34 @@ extension HidppClient {
                 return UInt16(ei[2]) << 8 | UInt16(ei[3])
             }
             return LedCluster(index: c, location: Int(ci[2]) << 8 | Int(ci[3]), effects: effects)
+        }
+    }
+}
+
+extension LedEffect {
+    /// 11 bytes no formato do perfil: ID do efeito e parâmetros (layout do libratbag).
+    var hidppProfileBytes: [UInt8] {
+        var b = [UInt8](repeating: 0, count: 11)
+        switch self {
+        case .off: break
+        case let .fixed(r, g, bl):
+            b[0] = 0x01; b[1] = r; b[2] = g; b[3] = bl
+        case let .breathe(r, g, bl, p, i):
+            b[0] = 0x0a; b[1] = r; b[2] = g; b[3] = bl
+            b[4] = UInt8(p >> 8); b[5] = UInt8(p & 0xff); b[7] = UInt8(i)
+        case let .cycle(p, i):
+            b[0] = 0x03; b[6] = UInt8(p >> 8); b[7] = UInt8(p & 0xff); b[8] = UInt8(i)
+        }
+        return b
+    }
+
+    init?(hidppProfileBytes b: [UInt8]) {
+        switch b[0] {
+        case 0x00: self = .off
+        case 0x01: self = .fixed(b[1], b[2], b[3])
+        case 0x0a: self = .breathe(b[1], b[2], b[3], periodMs: Int(b[4]) << 8 | Int(b[5]), intensity: b[7] == 0 ? 100 : Int(b[7]))
+        case 0x03: self = .cycle(periodMs: Int(b[6]) << 8 | Int(b[7]), intensity: b[8] == 0 ? 100 : Int(b[8]))
+        default: return nil
         }
     }
 }
