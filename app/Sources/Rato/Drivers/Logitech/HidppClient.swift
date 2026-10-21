@@ -184,8 +184,14 @@ final class HidppClient: @unchecked Sendable {
 
     func call(featureIndex: UInt8, featureId: UInt16, funcIdx: UInt8, params: [UInt8],
               timeoutMs: Int = 450, accept: ((Response) -> Bool)? = nil) throws -> Response {
-        let resp = try request(devIdx: deviceIndex, featureIdx: featureIndex, funcIdx: funcIdx,
+        let resp: Response
+        do {
+            resp = try request(devIdx: deviceIndex, featureIdx: featureIndex, funcIdx: funcIdx,
                                params: params, timeoutMs: timeoutMs, accept: accept)
+        } catch HidppError.noResponse {
+            // request só sabe o índice da feature neste mouse. O erro mostra o id, que é o número da documentação.
+            throw HidppError.noResponse(function: Int(funcIdx), feature: featureId)
+        }
         if let code = resp.error20 {
             throw HidppError.deviceError20(code: code, feature: featureId, function: Int(funcIdx))
         }
