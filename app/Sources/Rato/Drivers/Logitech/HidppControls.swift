@@ -105,6 +105,8 @@ extension HidppClient {
             let o = min(off, size - 16)
             let p = try call(featureIndex: f.index, featureId: HidppFeature.onboardProfiles.rawValue, funcIdx: 5,
                              params: [UInt8(sector >> 8), UInt8(sector & 0xff), UInt8(o >> 8), UInt8(o & 0xff)]).p
+            // Uma resposta curta encolheria o setor e deslocaria o resto dos bytes.
+            guard p.count >= 16 else { throw HidppError.unexpectedBody(p) }
             data.replaceSubrange(o..<o + 16, with: p.prefix(16))
             off = o + 16
         }
@@ -293,13 +295,19 @@ extension HidppClient {
         }
     }
 
+    /// Perfil em uso. Com CRC ruim, lê de novo uma vez: o painel mostraria bytes corrompidos como se fossem o perfil.
     func activeProfile() throws -> OnboardProfile {
-        let info = try onboardInfo()
-        let dir = try readSector(0x0000, size: info.sectorSize)
-        let i = info.currentProfile - 1
-        guard (0..<info.profiles).contains(i) else { throw HidppError.notSupported("sem perfil ativo (modo host?)") }
-        let addr = UInt16(dir[4 * i]) << 8 | UInt16(dir[4 * i + 1])
-        return Self.parseProfile(address: addr, enabled: dir[4 * i + 2] != 0, try readSector(addr, size: info.sectorSize))
+        for _ in 0..<2 {
+            let info = try onboardInfo()
+            let dir = try readSector(0x0000, size: info.sectorSize)
+            let i = info.currentProfile - 1
+            guard (0..<info.profiles).contains(i) else { throw HidppError.notSupported("sem perfil ativo (modo host?)") }
+            let addr = UInt16(dir[4 * i]) << 8 | UInt16(dir[4 * i + 1])
+            let p = Self.parseProfile(address: addr, enabled: dir[4 * i + 2] != 0, try readSector(addr, size: info.sectorSize))
+            if p.crcOk { return p }
+            hlog(String(format: "\(devLabel): perfil @0x%04x com CRC ruim", addr))
+        }
+        throw HidppError.notSupported("perfil ativo com CRC ruim")
     }
 
     // MARK: LED (0x8071)
