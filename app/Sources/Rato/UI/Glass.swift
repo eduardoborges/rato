@@ -5,13 +5,13 @@ import SwiftUI
 // opaco.
 
 extension View {
-    /// Vidro tingido quando há cor. Antes do macOS 26, a própria cor ou o cinza do sistema.
+    /// Vidro tingido quando há cor. Antes do macOS 26, a cor translúcida como o vidro, ou o cinza do sistema.
     @ViewBuilder func glass(tint: Color?, in shape: some Shape) -> some View {
         if #available(macOS 26, *) {
             let g: Glass = tint.map { Glass.regular.tint($0) } ?? .regular
             glassEffect(g.interactive(), in: shape)
         } else {
-            background(tint.map(AnyShapeStyle.init) ?? AnyShapeStyle(.quaternary), in: shape)
+            background(tint.map { AnyShapeStyle($0.opacity(0.35)) } ?? AnyShapeStyle(.quaternary), in: shape)
         }
     }
 
