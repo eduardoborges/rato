@@ -1,19 +1,25 @@
 <div align="center">
   <img src=".github/icon.png" width="128" alt="Rato app icon">
   <h1>🐭 Rato</h1>
-  <p>Logitech mouse settings in the <strong>macOS</strong> menu bar: battery with time left, DPI, polling rate and lighting.<br>
-  <strong>No G HUB running:</strong> Rato talks HID++ to the mouse directly and saves changes to its onboard profile, so they stay after the app quits.<br>
-  Rato is what Portugal calls a computer mouse.</p>
+  <p>Battery, DPI, polling rate and lighting for Logitech mice, from the <strong>macOS</strong> menu bar.<br>
+  Rato talks HID++ to the mouse and saves changes to its onboard profile, so <strong>G HUB doesn't have to be running</strong> or even installed.</p>
 
+  [![release](https://img.shields.io/github/v/release/eduardoborges/rato)](https://github.com/eduardoborges/rato/releases/latest)
   [![platform](https://img.shields.io/badge/platform-macOS%2013%2B-blue)](#requirements)
-  [![swift](https://img.shields.io/badge/Swift-AppKit-orange)](app/Sources/Rato/)
+  [![swift](https://img.shields.io/badge/Swift-SwiftUI-orange)](app/Sources/Rato/)
   [![license](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
+  <br>
+
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset=".github/panel-dark.png">
+    <img src=".github/panel-light.png" width="480" alt="Rato's panel with a photo of the G703, the battery at 65% with about 21 hours of use left, and the DPI, polling rate and lighting controls">
+  </picture>
+
+  <p><sub>Rato is what Portugal calls a computer mouse.</sub></p>
 </div>
 
----
-
-**[How it works](RELATORIO.md)** · **[Command line](#command-line)**
+**[Install](#install)** · **[Command line](#command-line)** · **[How it works](RELATORIO.md)**
 
 ## Why
 
@@ -27,10 +33,10 @@ G HUB is big, keeps an agent and an updater daemon running all the time, and on 
 - 💡 **Lighting.** Off, fixed color, breathing or color cycle.
 - 💾 **Saved on the mouse.** Changes go to the active onboard profile, the same place G HUB writes, so they keep working with Rato closed and after sleep. Every write backs up the profile sectors first and writes the original back if it fails halfway.
 
+Everything is in a panel that opens from a mouse icon in the menu bar. The icon fills up with the battery level and can show the percentage next to it. On macOS 26 and later the selected options use Liquid Glass. Older versions get a flat fill instead. The first time the panel opens, Rato downloads the G703's photo from Logitech's site and keeps it in `~/Library/Application Support/Rato`. Other mice get a drawing.
+
 And the rest:
 
-- A mouse icon in the menu bar that fills up with the battery level, with an optional percentage next to it.
-- A panel with a photo of the mouse, its battery and its settings, with Liquid Glass on macOS 26 and later. The first time the panel opens, Rato downloads the G703's photo from Logitech's site and keeps it in `~/Library/Application Support/Rato`. Other mice get a drawing.
 - A command line with the same settings, plus profile dumps, backup and restore.
 - A driver layer for other brands. A generic driver already shows the Bluetooth battery of any mouse.
 - It refuses to write while G HUB's agent runs, since both would talk over the same HID++ channel.
@@ -68,7 +74,7 @@ open app/build/Rato.app
 
 While developing, `swift run` in `app/` starts the menu bar app from the terminal, which lends it the terminal's Input Monitoring permission.
 
-`swift run Rato preview` opens the panel with sample data and never touches the mouse, so it can run next to the app. `preview vazio`, `preview aprendendo` and `preview dormindo` show the other states.
+`swift run Rato preview` opens the panel with sample data and never touches the mouse, so it can run next to the app. `preview vazio`, `preview aprendendo` and `preview dormindo` show the other states. The screenshots in this README were taken with it.
 
 ## Command line
 
@@ -90,6 +96,14 @@ swift run Rato selftest                      # driver routing, Bluetooth battery
 Backups go to `~/Library/Application Support/Rato/backups/`.
 
 ## Battery time left
+
+<table>
+  <tr>
+    <td align="center" valign="top"><img src=".github/battery-learned.png" width="240" alt="Battery card with 65% and about 21 hours of use left"><br><sub>Curve learned: percentage and hours left</sub></td>
+    <td align="center" valign="top"><img src=".github/battery-learning.png" width="240" alt="Battery card with 65% and the note Aprendendo o consumo"><br><sub>Still learning: no hours yet</sub></td>
+    <td align="center" valign="top"><img src=".github/battery-asleep.png" width="240" alt="Battery card with 65% and the time of the last reading"><br><sub>Mouse asleep: last reading and when it was taken</sub></td>
+  </tr>
+</table>
 
 The G703 only reports its battery voltage. G HUB turns that into a percentage and hours with a `battery.xml` it downloads for each mouse: a discharge curve Logitech measured at a constant load (minutes, voltage and energy used), and the draw in mW of the sensor, the MCU, each polling rate and each lighting effect. It finds the energy left at the current voltage and divides it by the draw of the active profile.
 
@@ -170,4 +184,4 @@ shasum -a 256 analysis/lghub_agent.arm64
 
 ## License
 
-MIT, see [LICENSE](LICENSE). Logitech, G HUB and LIGHTSPEED are trademarks of Logitech. Rato isn't affiliated with Logitech.
+MIT, see [LICENSE](LICENSE). Logitech, G HUB and LIGHTSPEED are trademarks of Logitech. Rato isn't affiliated with Logitech. The G703 photo in the screenshots is Logitech's and comes from its website.
