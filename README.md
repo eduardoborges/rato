@@ -16,7 +16,7 @@
     <img src=".github/panel-light.png" width="480" alt="Rato's panel with a photo of the G703, the battery at 65% with about 21 hours of use left, and the DPI, polling rate and lighting controls">
   </picture>
 
-  <p><sub>Rato is what Portugal calls a computer mouse.</sub></p>
+  <p><sub>Rato means mouse in Brazil.</sub></p>
 </div>
 
 **[Install](#install)** · **[Command line](#command-line)** · **[How it works](RELATORIO.md)**
