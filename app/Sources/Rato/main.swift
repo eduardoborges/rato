@@ -12,6 +12,7 @@ import AppKit
 //   Rato set led off | color RRGGBB | breathe RRGGBB | cycle
 //   Rato profiles | features | backup | restore <pasta> | mode host|onboard    só Logitech
 //   Rato selftest
+//   Rato preview [vazio|aprendendo|dormindo]   o painel com dados de exemplo, sem HID
 
 extension Drivers {
     /// Drivers de fabricante vêm antes; o genérico fica por último.
@@ -191,9 +192,9 @@ func parseChange(_ a: [String]) -> SettingChange? {
     }
 }
 
-func startMenuBarApp() -> Never {
+func startMenuBarApp(sample: [MouseCard]? = nil) -> Never {
     let app = NSApplication.shared
-    let delegate = AppDelegate()
+    let delegate = AppDelegate(sample: sample)
     app.delegate = delegate
     app.setActivationPolicy(.accessory)
     app.run()
@@ -205,6 +206,7 @@ setvbuf(stdout, nil, _IOLBF, 0)
 
 switch CommandLine.arguments.dropFirst().first {
 case "selftest": selftest()
+case "preview": startMenuBarApp(sample: MouseCard.samples(CommandLine.arguments.dropFirst(2).first))
 case let c? where ["probe", "state", "profiles", "features", "set", "backup", "restore", "mode"].contains(c): CLI.run(c)
 default: startMenuBarApp()
 }

@@ -1,14 +1,48 @@
 import AppKit
 import IOKit.hid
+import SwiftUI
 
-/// Menu-bar: título com % de bateria do primeiro device; dropdown com
-/// uma linha por device (bateria) + checkbox "Apagar LEDs".
+/// Barra de menus: o ícone do mouse com a bateria do primeiro mouse, e um painel com bateria, DPI, polling e luz.
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private var batteryTimer: Timer?
+    private let model = PanelModel()
+    private let popover = NSPopover()
+    /// Prévia: o painel com dados de exemplo, sem abrir nada no HID.
+    private let sample: [MouseCard]?
+    private var previewAnchor: NSWindow?
+
+    init(sample: [MouseCard]? = nil) { self.sample = sample }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+
+        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        item.button?.imagePosition = .imageLeading
+        item.button?.target = self
+        item.button?.action = #selector(togglePanel(_:))
+        statusItem = item
+
+        let host = NSHostingController(rootView: PanelView(model: model))
+        host.sizingOptions = .preferredContentSize
+        popover.contentViewController = host
+        popover.behavior = .transient
+        model.onChange = { [weak self] in self?.rebuild() }
+        rebuild()
+
+        if sample != nil {
+            // A barra de menus pode esconder um ícone novo. A prévia prende o painel a uma janela invisível no canto da tela.
+            let top = NSScreen.main?.visibleFrame ?? .zero
+            let anchor = NSWindow(contentRect: NSRect(x: top.minX + 400, y: top.maxY - 1, width: 1, height: 1),
+                                  styleMask: .borderless, backing: .buffered, defer: false)
+            anchor.backgroundColor = .clear
+            anchor.level = .statusBar
+            anchor.orderFrontRegardless()
+            previewAnchor = anchor
+            if #available(macOS 14, *) { NSApp.activate() } else { NSApp.activate(ignoringOtherApps: true) }
+            if let view = anchor.contentView { popover.show(relativeTo: view.bounds, of: view, preferredEdge: .minY) }
+            return
+        }
 
         // Num .app, o macOS só mostra o receptor ao IOHIDManager com a permissão de
         // Monitoramento de Entrada. Pelo terminal, o app herda a do terminal.
@@ -20,11 +54,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let engine = DeviceEngine.shared
         engine.onChanged = { [weak self] in self?.rebuild() }
         engine.start()
-
-        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        item.button?.imagePosition = .imageLeading
-        self.statusItem = item
-        rebuild()
 
         // Enumeração inicial (a thread HID cuida dos callbacks).
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -39,17 +68,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    // MARK: Ícones
-
-    private static func symbol(_ name: String, _ description: String) -> NSImage? {
-        NSImage(systemSymbolName: name, accessibilityDescription: description)
+    @objc private func togglePanel(_ sender: Any?) {
+        guard let button = statusItem?.button else { return }
+        if popover.isShown { popover.performClose(sender); return }
+        // Um app de barra de menus fica atrás dos outros; sem ativar, o campo de DPI não recebe o teclado.
+        if #available(macOS 14, *) { NSApp.activate() } else { NSApp.activate(ignoringOtherApps: true) }
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
     }
 
-    private static func batterySymbol(_ b: BatteryState) -> String {
-        if b.charging { return "battery.100percent.bolt" }
-        guard let p = b.percent else { return "battery.50percent" }
-        return "battery.\(min(100, (p + 12) / 25 * 25))percent"
-    }
+    // MARK: Ícone
 
     /// Mouse em template que enche de baixo para cima conforme a bateria, como o ícone de bateria do sistema.
     private static func mouseIcon(level: Int?, charging: Bool) -> NSImage {
@@ -85,238 +112,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         b.percent.map { "\(b.approx ? "≈" : "")\($0)%" } ?? b.voltageMv.map { "\($0)mV" } ?? "?"
     }
 
-    private static func batteryLine(_ t: MouseTarget) -> (symbol: String, text: String) {
-        if let b = t.battery {
-            var parts = [levelText(b), b.status] + [b.timeLeftText].compactMap { $0 }
-            if t.batteryErr != nil, let at = t.batteryAt {
-                parts.append("lido às \(at.formatted(date: .omitted, time: .shortened))")
-            }
-            return (batterySymbol(b), parts.joined(separator: "  •  "))
-        }
-        if let err = t.batteryErr { return ("exclamationmark.triangle", err) }
-        return ("battery.0percent", "n/a")
-    }
-
-    private var showPercent: Bool {
-        get { UserDefaults.standard.object(forKey: "showPercent") as? Bool ?? true }
-        set { UserDefaults.standard.set(newValue, forKey: "showPercent") }
-    }
-
-    // MARK: Menu
-
     private func rebuild() {
-        guard let item = statusItem else { return }
-        let engine = DeviceEngine.shared
-        let targets = engine.snapshot()
-
-        if let button = item.button {
-            // preferência: 1º device com % real
-            let b = targets.first(where: { $0.battery?.percent != nil })?.battery
-                ?? targets.lazy.compactMap(\.battery).first
-            let text = b.map(Self.levelText)
-            let icon = Self.mouseIcon(level: b?.percent, charging: b?.status == "carregando")
-            icon.accessibilityDescription = text.map { "Bateria do mouse \($0)" } ?? "Nenhum mouse"
-            button.image = icon
-            button.title = showPercent ? text ?? "" : ""
-            button.appearsDisabled = targets.isEmpty
-        }
-
-        let menu = item.menu ?? NSMenu()
-        menu.removeAllItems()
-        menu.autoenablesItems = false
-
-        if targets.isEmpty {
-            let none = NSMenuItem(title: "Nenhum mouse HID++ Logitech encontrado", action: nil, keyEquivalent: "")
-            none.isEnabled = false
-            menu.addItem(none)
-        } else {
-            for t in targets {
-                let line = Self.batteryLine(t)
-                let bi = NSMenuItem(title: "\(t.label)  —  \(line.text)",
-                                    action: nil, keyEquivalent: "")
-                bi.image = Self.symbol(line.symbol, "Bateria")
-                bi.isEnabled = false
-                menu.addItem(bi)
-
-                if t.busy {
-                    let busy = NSMenuItem(title: "Gravando no mouse…", action: nil, keyEquivalent: "")
-                    busy.isEnabled = false
-                    menu.addItem(busy)
-                }
-                if let s = t.settings {
-                    settingsItems(t, s).forEach(menu.addItem)
-                }
-                if let msg = t.lastAction {
-                    let warn = NSMenuItem(title: msg, action: nil, keyEquivalent: "")
-                    warn.image = Self.symbol("exclamationmark.triangle", "Aviso")
-                    warn.isEnabled = false
-                    menu.addItem(warn)
-                }
-            }
-        }
-
-        menu.addItem(.separator())
-
-        let percent = NSMenuItem(title: "Mostrar porcentagem", action: #selector(togglePercent(_:)), keyEquivalent: "")
-        percent.target = self
-        percent.state = showPercent ? .on : .off
-        menu.addItem(percent)
-
-        let rescan = NSMenuItem(title: "Re-escanear / atualizar bateria",
-                                action: #selector(rescan(_:)), keyEquivalent: "r")
-        rescan.target = self
-        menu.addItem(rescan)
-
-        let quit = NSMenuItem(title: "Sair", action: #selector(quit(_:)), keyEquivalent: "q")
-        quit.target = self
-        menu.addItem(quit)
-
-        item.menu = menu
-    }
-
-    // MARK: Perfil (DPI, polling, luz)
-
-    private final class ProfileAction: NSObject {
-        let target: MouseTarget
-        let change: SettingChange
-        init(_ t: MouseTarget, _ c: SettingChange) { target = t; change = c }
-    }
-
-    private static let colors: [(String, UInt8, UInt8, UInt8)] = [
-        ("Branco", 0xff, 0xff, 0xff), ("Vermelho", 0xff, 0x00, 0x00), ("Laranja", 0xff, 0x80, 0x00),
-        ("Amarelo", 0xff, 0xff, 0x00), ("Verde", 0x00, 0xff, 0x00), ("Ciano", 0x00, 0xff, 0xff),
-        ("Azul", 0x00, 0x00, 0xff), ("Roxo", 0x80, 0x00, 0xff), ("Rosa", 0xff, 0x00, 0xff),
-    ]
-
-    private static func swatch(_ r: UInt8, _ g: UInt8, _ b: UInt8) -> NSImage {
-        NSImage(size: NSSize(width: 12, height: 12), flipped: false) { rect in
-            NSColor(srgbRed: CGFloat(r) / 255, green: CGFloat(g) / 255, blue: CGFloat(b) / 255, alpha: 1).setFill()
-            NSBezierPath(ovalIn: rect.insetBy(dx: 1, dy: 1)).fill()
-            return true
-        }
-    }
-
-    private func changeItem(_ title: String, _ t: MouseTarget, _ c: SettingChange, on: Bool) -> NSMenuItem {
-        let i = NSMenuItem(title: title, action: #selector(applyChange(_:)), keyEquivalent: "")
-        i.target = self
-        i.representedObject = ProfileAction(t, c)
-        i.state = on ? .on : .off
-        i.isEnabled = !t.busy
-        return i
-    }
-
-    private func submenu(_ title: String, _ symbol: String, _ m: NSMenu) -> NSMenuItem {
-        let i = NSMenuItem(title: title, action: nil, keyEquivalent: "")
-        i.image = Self.symbol(symbol, title)
-        i.submenu = m
-        return i
-    }
-
-    private func settingsItems(_ t: MouseTarget, _ s: MouseSettings) -> [NSMenuItem] {
-        var items: [NSMenuItem] = []
-        let levels = s.dpiLevels
-        let dpi = NSMenu()
-        for (i, v) in levels.enumerated() {
-            dpi.addItem(changeItem("\(v) DPI", t, .dpiDefault(i), on: i == s.defaultDpiIndex))
-        }
-        dpi.addItem(.separator())
-        let edit = NSMenuItem(title: "Editar níveis…", action: #selector(editDpi(_:)), keyEquivalent: "")
-        edit.target = self
-        edit.representedObject = t
-        edit.isEnabled = !t.busy
-        dpi.addItem(edit)
-
-        if !levels.isEmpty {
-            let current = levels.indices.contains(s.defaultDpiIndex) ? "\(levels[s.defaultDpiIndex]) DPI" : "?"
-            items.append(submenu("DPI: \(current)", "cursorarrow.motionlines", dpi))
-        }
-
-        let rate = NSMenu()
-        for ms in s.supportedRatesMs.sorted(by: >) {
-            rate.addItem(changeItem("\(1000 / ms) Hz", t, .rate(ms: ms), on: ms == s.reportRateMs))
-        }
-        if !s.supportedRatesMs.isEmpty {
-            items.append(submenu("Polling: \(1000 / max(1, s.reportRateMs)) Hz", "speedometer", rate))
-        }
-
-        guard !s.ledKinds.isEmpty else { return items }
-        let cur = s.led
-        var color: (UInt8, UInt8, UInt8)?
-        var breath = (periodMs: 4000, intensity: 100)
-        var cycle = (periodMs: 8000, intensity: 100)
-        var ledName = "Personalizada"
-        switch cur {
-        case .off?: ledName = "Desligada"
-        case let .fixed(r, g, b)?: color = (r, g, b); ledName = "Fixa"
-        case let .breathe(r, g, b, pm, i)?: color = (r, g, b); breath = (pm, i); ledName = "Respiração"
-        case let .cycle(pm, i)?: cycle = (pm, i); ledName = "Ciclo de cores"
-        case nil: break
-        }
-        let base = color ?? (0xff, 0xff, 0xff)
-        let led = NSMenu()
-        if s.ledKinds.contains(.off) {
-            led.addItem(changeItem("Desligada", t, .led(.off), on: ledName == "Desligada"))
-        }
-        if s.ledKinds.contains(.cycle) {
-            led.addItem(changeItem("Ciclo de cores", t, .led(.cycle(periodMs: cycle.periodMs, intensity: cycle.intensity)),
-                                   on: ledName == "Ciclo de cores"))
-        }
-        if s.ledKinds.contains(.breathe) {
-            led.addItem(changeItem("Respiração", t, .led(.breathe(base.0, base.1, base.2, periodMs: breath.periodMs,
-                                                                  intensity: breath.intensity)), on: ledName == "Respiração"))
-        }
-        led.addItem(.separator())
-        for (name, r, g, b) in Self.colors where s.ledKinds.contains(.fixed) || s.ledKinds.contains(.breathe) {
-            let e: LedEffect = ledName == "Respiração"
-                ? .breathe(r, g, b, periodMs: breath.periodMs, intensity: breath.intensity) : .fixed(r, g, b)
-            let i = changeItem(name, t, .led(e), on: color.map { $0 == (r, g, b) } ?? false)
-            i.image = Self.swatch(r, g, b)
-            led.addItem(i)
-        }
-
-        items.append(submenu("Luz: \(ledName)", "lightbulb", led))
-        return items
-    }
-
-    // MARK: Ações
-
-    @objc private func applyChange(_ sender: NSMenuItem) {
-        guard let a = sender.representedObject as? ProfileAction else { return }
-        DeviceEngine.shared.apply(a.change, to: a.target)
-    }
-
-    @objc private func editDpi(_ sender: NSMenuItem) {
-        guard let t = sender.representedObject as? MouseTarget, let s = t.settings else { return }
-        let levels = s.dpiLevels
-        let alert = NSAlert()
-        alert.messageText = "Níveis de DPI"
-        let range = s.dpiRange.map { ", de \($0.lowerBound) a \($0.upperBound) em passos de \(s.dpiStep)" } ?? ""
-        alert.informativeText = "Até 5 valores separados por vírgula\(range)."
-        let field = NSTextField(string: levels.map(String.init).joined(separator: ", "))
-        field.frame = NSRect(x: 0, y: 0, width: 240, height: 24)
-        alert.accessoryView = field
-        alert.addButton(withTitle: "Gravar")
-        alert.addButton(withTitle: "Cancelar")
-        if #available(macOS 14, *) { NSApp.activate() } else { NSApp.activate(ignoringOtherApps: true) }
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-        let new = field.stringValue.split(whereSeparator: { $0 == "," || $0 == " " }).compactMap { Int($0) }
-        guard !new.isEmpty else { return }
-        let current = levels.indices.contains(s.defaultDpiIndex) ? levels[s.defaultDpiIndex] : nil
-        let def = current.flatMap { new.firstIndex(of: $0) } ?? new.count - 1
-        DeviceEngine.shared.apply(.dpi(levels: new, defaultIndex: def), to: t)
-    }
-
-    @objc private func togglePercent(_ sender: Any) {
-        showPercent.toggle()
-        rebuild()
-    }
-
-    @objc private func rescan(_ sender: Any) {
-        DeviceEngine.shared.rescan()
-        DeviceEngine.shared.refreshAllBatteries(profiles: true)
-    }
-
-    @objc private func quit(_ sender: Any) {
-        NSApp.terminate(sender)
+        let mice = sample ?? DeviceEngine.shared.snapshot().map(MouseCard.init)
+        model.mice = mice
+        guard let button = statusItem?.button else { return }
+        // preferência: 1º mouse com % real
+        let b = mice.first(where: { $0.battery?.percent != nil })?.battery ?? mice.lazy.compactMap(\.battery).first
+        let text = b.map(Self.levelText)
+        let icon = Self.mouseIcon(level: b?.percent, charging: b?.charging == true)
+        icon.accessibilityDescription = text.map { "Bateria do mouse \($0)" } ?? "Nenhum mouse"
+        button.image = icon
+        button.title = model.showPercent ? text ?? "" : ""
+        button.appearsDisabled = mice.isEmpty
     }
 }
