@@ -60,6 +60,10 @@ enum SettingChange {
 /// Um mouse encontrado por um driver.
 protocol MouseDriver: AnyObject {
     var name: String { get }
+    /// Por onde o mouse está ligado: "USB Receiver, slot 1", "Bluetooth".
+    var connection: String { get }
+    /// PID do modelo, o mesmo em qualquer transporte. nil quando o driver não sabe.
+    var modelId: Int? { get }
     /// Identifica o mouse entre interfaces HID repetidas do mesmo aparelho.
     var key: String { get }
     var details: [String] { get }
@@ -68,6 +72,11 @@ protocol MouseDriver: AnyObject {
     /// nil = o driver só lê, sem ajustes.
     func readSettings() throws -> MouseSettings?
     func apply(_ change: SettingChange) throws
+}
+
+extension MouseDriver {
+    var connection: String { "" }
+    var modelId: Int? { nil }
 }
 
 /// Cada tipo de driver diz de quais fabricantes cuida e acha os mouses numa interface HID.

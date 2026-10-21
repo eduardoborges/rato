@@ -11,6 +11,7 @@ final class GenericDriver: MouseDriver, MouseDriverType {
     init(bridge: HIDDeviceBridge) { self.bridge = bridge }
 
     var name: String { bridge.productName }
+    var connection: String { bridge.transport }
     var key: String { "generic@\(bridge.vidpid)@\(bridge.locationId)" }
     var details: [String] { ["hw        : \(bridge.description)", "driver    : genérico, só bateria Bluetooth"] }
 

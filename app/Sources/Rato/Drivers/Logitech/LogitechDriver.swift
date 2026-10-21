@@ -14,6 +14,9 @@ final class LogitechDriver: MouseDriver, MouseDriverType {
     private var rates: [Int] = []
     private var ledKinds: [LedKind]?
     private var batteryModel: BatteryModel?
+    /// Lidos do próprio mouse na descoberta.
+    private(set) var modelName: String?
+    private(set) var modelId: Int?
 
     init(bridge: HIDDeviceBridge, client: HidppClient, isReceiverSlot: Bool) {
         self.bridge = bridge
@@ -22,9 +25,12 @@ final class LogitechDriver: MouseDriver, MouseDriverType {
     }
 
     var name: String {
+        if let modelName { return modelName }
         if isReceiverSlot { return "\(bridge.productName) (slot \(client.deviceIndex))" }
         return bridge.productName + (bridge.transport.uppercased().contains("BLUE") ? " (BT)" : " (direct)")
     }
+
+    var connection: String { isReceiverSlot ? "\(bridge.productName), slot \(client.deviceIndex)" : bridge.transport }
 
     var key: String { "logitech@\(bridge.locationId)#\(client.deviceIndex)" }
 
@@ -77,11 +83,18 @@ final class LogitechDriver: MouseDriver, MouseDriverType {
     private func probeCapabilities() -> Bool {
         for _ in 0..<2 {
             lighting = client.lightingPath()
-            if case .none = lighting {} else { return true }
-            if (try? readBattery()) != nil { return true }
+            if case .none = lighting {} else { return identify() }
+            if (try? readBattery()) != nil { return identify() }
             Thread.sleep(forTimeInterval: 0.2)
         }
         return false
+    }
+
+    /// Lê o nome e o PID enquanto o mouse está acordado. Se falhar, o painel usa o nome do receptor e o desenho genérico.
+    private func identify() -> Bool {
+        modelName = try? client.deviceName()
+        modelId = try? client.modelPids().first
+        return true
     }
 
     static func probe(_ bridge: HIDDeviceBridge) -> [MouseDriver] {

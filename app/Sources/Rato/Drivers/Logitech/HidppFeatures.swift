@@ -7,6 +7,7 @@ enum HidppFeature: UInt16 {
     case root = 0x0000
     case featureSet = 0x0001
     case deviceInfo = 0x0003
+    case deviceName = 0x0005
     case batteryLevelStatus = 0x1000
     case batteryVoltage = 0x1001
     case ledControl1300 = 0x1300
@@ -114,6 +115,20 @@ extension HidppClient {
         let p = try call(featureIndex: f.index, featureId: HidppFeature.deviceInfo.rawValue, funcIdx: 0, params: []).p
         guard p.count >= 13 else { throw HidppError.unexpectedBody(p) }
         return stride(from: 7, to: 13, by: 2).map { Int(p[$0]) << 8 | Int(p[$0 + 1]) }.filter { $0 != 0 }
+    }
+
+    /// Nome que o mouse informa (0x0005): f0 dá o tamanho, f1(i) devolve os caracteres a partir do i.
+    func deviceName() throws -> String {
+        let id = HidppFeature.deviceName.rawValue
+        let f = try feature(id)
+        let count = Int(try call(featureIndex: f.index, featureId: id, funcIdx: 0, params: []).p.first ?? 0)
+        var bytes: [UInt8] = []
+        while bytes.count < count {
+            let p = try call(featureIndex: f.index, featureId: id, funcIdx: 1, params: [UInt8(bytes.count)]).p
+            guard !p.isEmpty else { break }
+            bytes += p.prefix(count - bytes.count)
+        }
+        return String(decoding: bytes.filter { $0 != 0 }, as: UTF8.self)
     }
 
     /// Lista todas as features via FeatureSet (0x0001): f0 dá a quantidade, f1(i) dá [idHi, idLo, tipo, versão].
