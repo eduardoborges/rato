@@ -16,7 +16,19 @@ jobs:
         working-directory: app
     steps:
       - uses: actions/checkout@v4
+      - name: Toolchain version
+        id: toolchain
+        run: echo "hash=$( { swift --version; xcrun --show-sdk-build-version; } | shasum | cut -c1-12)" >> "$GITHUB_OUTPUT"
+      # Most of a clean build is SwiftPM precompiling the SDK modules, and those don't depend on our
+      # sources. The fallback key reuses them after any edit. The version hash throws them out when
+      # the runner gets a new Xcode.
+      - uses: actions/cache@v6
+        with:
+          path: app/.build
+          key: swiftpm-${{ runner.os }}-${{ steps.toolchain.outputs.hash }}-${{ hashFiles('app/Package.swift', 'app/Sources/**') }}
+          restore-keys: swiftpm-${{ runner.os }}-${{ steps.toolchain.outputs.hash }}-
+      # Only Xcode reads the index store, and it would make the cache a third bigger.
       - name: Build
-        run: swift build
+        run: swift build --disable-index-store
       - name: Selftest
-        run: swift run Rato selftest
+        run: swift run --disable-index-store Rato selftest
