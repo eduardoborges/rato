@@ -126,20 +126,26 @@ private struct MouseSection: View {
     }
 }
 
-/// Desenho do mouse com um halo na cor da luz dele.
+/// Foto do mouse, ou um desenho quando não há foto, com um halo na cor da luz dele.
 struct MousePhoto: View {
     let modelId: Int?
     let led: LedEffect?
+    @State private var photo: NSImage?
 
     var body: some View {
         ZStack {
             glow.blur(radius: 26).opacity(0.6)
-            Image(systemName: "computermouse.fill")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .foregroundStyle(.secondary)
-                .padding(12)
+            if let photo {
+                Image(nsImage: photo).resizable().aspectRatio(contentMode: .fit).shadow(radius: 6, y: 3)
+            } else {
+                Image(systemName: "computermouse.fill")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .foregroundStyle(.secondary)
+                    .padding(12)
+            }
         }
+        .task(id: modelId) { if let modelId { photo = await MousePhotos.load(pid: modelId) } }
     }
 
     @ViewBuilder private var glow: some View {
