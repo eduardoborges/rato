@@ -25,6 +25,8 @@ final class HIDDeviceBridge: @unchecked Sendable {
 
     private let inLock = NSLock()
     private var inputBodies: [[UInt8]] = []
+    /// Um pedido HID++ por vez. Cada pedido esvazia a fila de input, então dois ao mesmo tempo descartam a resposta um do outro.
+    let requestLock = NSLock()
 
     // Trace de diagnóstico (CLI "probe" imprime no fim).
     private let traceLock = NSLock()

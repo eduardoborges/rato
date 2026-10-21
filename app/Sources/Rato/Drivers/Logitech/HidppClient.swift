@@ -93,6 +93,7 @@ final class HidppClient: @unchecked Sendable {
                          params: [UInt8], timeoutMs: Int,
                          idMode: HIDDeviceBridge.ReportIDMode? = nil,
                          accept: ((Response) -> Bool)? = nil) throws -> Response {
+        bridge.requestLock.lock(); defer { bridge.requestLock.unlock() }
         try bridge.open() // idempotente
         // HID++ curto: 3 params (wire 7 com report id). Longo: 16 params (wire 20).
         // 4+ params reais não cabem no curto — sobem para 0x11.
