@@ -27,7 +27,7 @@ enum HidppError: Error, CustomStringConvertible {
 
     var description: String {
         switch self {
-        case .noResponse(let f, let feat): return "sem resposta (feature \(fmtByte(UInt8(feat >> 8)))\(fmtByte(UInt8(feat & 0xff))) f\(f))"
+        case .noResponse(let f, let feat): return String(format: "sem resposta (feature 0x%04x f%d)", feat, f)
         case .deviceError(let code, let feat, let f):
             let names: [UInt8: String] = [
                 0x01: "feature desconhecida no device",
