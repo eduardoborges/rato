@@ -74,6 +74,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Um app de barra de menus fica atrás dos outros; sem ativar, o campo de DPI não recebe o teclado.
         if #available(macOS 14, *) { NSApp.activate() } else { NSApp.activate(ignoringOtherApps: true) }
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        // Sem isso, o primeiro controle abre em foco, com um anel azul em volta.
+        popover.contentViewController?.view.window?.makeFirstResponder(nil)
     }
 
     // MARK: Ícone
