@@ -30,5 +30,6 @@ jobs:
       # Only Xcode reads the index store, and it would make the cache a third bigger.
       - name: Build
         run: swift build --disable-index-store
+      # swift run would start SwiftPM a second time just to find the binary.
       - name: Selftest
-        run: swift run --disable-index-store Rato selftest
+        run: .build/debug/Rato selftest
