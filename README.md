@@ -30,6 +30,7 @@ G HUB is big, keeps an agent and an updater daemon running all the time, and on 
 And the rest:
 
 - A mouse icon in the menu bar that fills up with the battery level, with an optional percentage next to it.
+- A panel with a photo of the mouse, its battery and its settings, with Liquid Glass on macOS 26 and later. The first time the panel opens, Rato downloads the G703's photo from Logitech's site and keeps it in `~/Library/Application Support/Rato`. Other mice get a drawing.
 - A command line with the same settings, plus profile dumps, backup and restore.
 - A driver layer for other brands. A generic driver already shows the Bluetooth battery of any mouse.
 - It refuses to write while G HUB's agent runs, since both would talk over the same HID++ channel.
@@ -67,6 +68,8 @@ open app/build/Rato.app
 
 While developing, `swift run` in `app/` starts the menu bar app from the terminal, which lends it the terminal's Input Monitoring permission.
 
+`swift run Rato preview` opens the panel with sample data and never touches the mouse, so it can run next to the app. `preview vazio`, `preview aprendendo` and `preview dormindo` show the other states.
+
 ## Command line
 
 The same binary takes commands:
@@ -92,14 +95,14 @@ The G703 only reports its battery voltage. G HUB turns that into a percentage an
 
 Rato doesn't read that file and learns the curve from your mouse instead. Every read while the mouse is awake adds the time since the previous read to the current 20 mV voltage band, and a band counts once the voltage has passed all the way through it. Hours left is the sum of the learned time in the bands below the current voltage. Bands it hasn't learned yet follow a generic Li-ion curve at the pace of the learned ones. What it learns lives in `~/Library/Application Support/Rato/bateria-<pid>.json`.
 
-Until three bands are learned, the percentage comes from the generic curve, which is off by up to about 8 points on the G703, and the menu shows no hours. The estimate gets closer as the mouse goes through a full discharge. The hours count only time with the mouse awake, at the lighting and polling you usually use. Change the lighting and they drift until Rato relearns.
+Until three bands are learned, the percentage comes from the generic curve, which is off by up to about 8 points on the G703, and the panel shows no hours. The estimate gets closer as the mouse goes through a full discharge. The hours count only time with the mouse awake, at the lighting and polling you usually use. Change the lighting and they drift until Rato relearns.
 
 ## Common problems
 
 | Symptom | What to do |
 |---|---|
-| Grayed out icon | Move the mouse to wake it and click "Re-escanear". If that doesn't help, quit G HUB. `probe` shows what the receiver answered |
-| The menu says "Não gravou" | Move the mouse to wake it and try again. If a write fails halfway, Rato writes the original back; `restore` brings back any backup |
+| Grayed out icon | Move the mouse to wake it and click ↻ in the panel. If that doesn't help, quit G HUB. `probe` shows what the receiver answered |
+| The panel says "Não gravou" | Move the mouse to wake it and try again. If a write fails halfway, Rato writes the original back; `restore` brings back any backup |
 | `probe` finds no device | The receiver isn't plugged in, or another process holds the HID channel |
 | Nothing shows up in Rato.app | Turn on Rato in System Settings > Privacy & Security > Input Monitoring and reopen it |
 
@@ -107,7 +110,7 @@ Until three bands are learned, the percentage comes from the generic curve, whic
 
 - Buttons can't be remapped yet.
 - Lighting uses the same effect on both G703 zones.
-- The menu has a fixed color palette, and breathing and cycle run at 4 s and 8 s at full intensity. Other colors only from the command line.
+- The panel has a fixed color palette, and breathing and cycle run at 4 s and 8 s at full intensity. Other colors only from the command line.
 - Hours left show up after a few hours of use and only get accurate after a full discharge.
 - One mouse per receiver: the first slot that answers.
 - Rato doesn't start at login.
@@ -129,7 +132,7 @@ To add a brand:
 2. In `probe`, recognize the right HID interface and return one driver per mouse. Return nothing for the other interfaces.
 3. Add the class to `Drivers.all`, before `GenericDriver`.
 
-The menu and the command line show DPI, polling and lighting according to what `readSettings()` returns.
+The panel and the command line show DPI, polling and lighting according to what `readSettings()` returns.
 
 ## Reverse engineering
 
