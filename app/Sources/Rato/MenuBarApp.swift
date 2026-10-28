@@ -3,7 +3,7 @@ import IOKit.hid
 import SwiftUI
 
 /// Barra de menus: o ícone do mouse com a bateria do primeiro mouse, e um painel com bateria, DPI, polling e luz.
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var statusItem: NSStatusItem?
     private var batteryTimer: Timer?
     private let model = PanelModel()
@@ -11,6 +11,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Prévia: o painel com dados de exemplo, sem abrir nada no HID.
     private let sample: [MouseCard]?
     private var previewAnchor: NSWindow?
+    /// Fecha o painel quando o clique vai para outro app. Depois de dias rodando, o .transient às vezes deixa de fechar.
+    private var outsideClick: Any?
 
     init(sample: [MouseCard]? = nil) { self.sample = sample }
 
@@ -27,6 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         host.sizingOptions = .preferredContentSize
         popover.contentViewController = host
         popover.behavior = .transient
+        popover.delegate = self
         model.onChange = { [weak self] in self?.rebuild() }
         rebuild()
 
@@ -76,6 +79,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         // Sem isso, o primeiro controle abre em foco, com um anel azul em volta.
         popover.contentViewController?.view.window?.makeFirstResponder(nil)
+    }
+
+    func popoverDidShow(_ notification: Notification) {
+        // O monitor global só vê cliques entregues a outros apps; os do ícone e do painel não chegam aqui.
+        outsideClick = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]) { [weak self] _ in
+            self?.popover.performClose(nil)
+        }
+    }
+
+    func popoverDidClose(_ notification: Notification) {
+        if let outsideClick { NSEvent.removeMonitor(outsideClick) }
+        outsideClick = nil
     }
 
     // MARK: Ícone
