@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.3.0](https://github.com/eduardoborges/rato/compare/v0.2.0...v0.3.0) (2026-10-29)
+
+
+### Features
+
+* filter HID input reports by id and expose the report descriptor ([bc1b79a](https://github.com/eduardoborges/rato/commit/bc1b79ab7883609a418abf28619d066a13a64e33))
+* let each driver cap the number of DPI levels ([a9780bc](https://github.com/eduardoborges/rato/commit/a9780bcd3733676a0fcf325cbdacef24a6b052c8))
+* set the polling rate in Hz ([c1a26c4](https://github.com/eduardoborges/rato/commit/c1a26c4c265753dfaf838344fdb8c078198529b2))
+* support ATK and VXE mice with a Compx chip ([67c1421](https://github.com/eduardoborges/rato/commit/67c142182340fa3caa8fcae832cea2ddc8d8c500))
+
+
+### Bug Fixes
+
+* **cli:** hide the led line when the mouse has no lighting to set ([97051a0](https://github.com/eduardoborges/rato/commit/97051a044758949873e8e2a34c99834eb98bb953))
+* close the panel on a click in another app ([e3c8c98](https://github.com/eduardoborges/rato/commit/e3c8c987f82bcf010d3611f0bddb952639169323))
+* size the HID input buffer to the device's largest report ([401a15c](https://github.com/eduardoborges/rato/commit/401a15c84a7c5402d5e1ba415f1e5dd6a8e7ffe2))
+
 ## [0.2.0](https://github.com/eduardoborges/rato/compare/v0.1.2...v0.2.0) (2026-10-21)
 
 
