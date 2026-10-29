@@ -58,7 +58,9 @@ enum CLI {
                     let range = s.dpiRange.map { "; aceita \($0.lowerBound)...\($0.upperBound) passo \(s.dpiStep)" } ?? ""
                     print("    dpi       : \(levels.joined(separator: " "))\(range)")
                     print("    polling   : \(s.reportRateHz) Hz (aceita \(s.supportedRatesHz.map(String.init).joined(separator: "/")) Hz)")
-                    print("    led       : \(s.led.map { "\($0)" } ?? "?") (aceita \(s.ledKinds.map { "\($0)" }.joined(separator: ", ")))")
+                    if !s.ledKinds.isEmpty {
+                        print("    led       : \(s.led.map { "\($0)" } ?? "?") (aceita \(s.ledKinds.map { "\($0)" }.joined(separator: ", ")))")
+                    }
                 } else {
                     print("    ajustes   : nenhum (driver só lê)")
                 }
