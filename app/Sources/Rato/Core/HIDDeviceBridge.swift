@@ -20,7 +20,6 @@ final class HIDDeviceBridge: @unchecked Sendable {
     /// Runloop que carrega os callbacks de input (thread HID dedicada).
     private let runLoop: CFRunLoop
     private var opened = false
-    private let inputLen = 40
     private var inputBuffer: UnsafeMutablePointer<UInt8>?
 
     private let inLock = NSLock()
@@ -83,6 +82,8 @@ extension HIDDeviceBridge: CustomStringConvertible {
 
         IOHIDDeviceScheduleWithRunLoop(device, runLoop, "kCFRunLoopDefaultMode" as CFString)
 
+        // O buffer precisa comportar o maior report da interface, e o receptor Compx declara reports de 49 bytes.
+        let inputLen = max(64, maxIn)
         let buf = UnsafeMutablePointer<UInt8>.allocate(capacity: inputLen)
         buf.initialize(repeating: 0, count: inputLen)
         inputBuffer = buf
