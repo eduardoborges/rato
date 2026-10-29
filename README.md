@@ -29,7 +29,7 @@ G HUB is big, keeps an agent and an updater daemon running all the time, and on 
 
 - 🔋 **Battery with time left.** Percentage and hours of use left from a discharge curve Rato learns from your mouse, so G HUB doesn't need to be installed.
 - 🎯 **DPI levels.** Edit the levels and pick the default one. The change applies right away.
-- ⚡ **Polling rate.** 1, 2, 4 or 8 ms.
+- ⚡ **Polling rate.** 125 to 1000 Hz.
 - 💡 **Lighting.** Off, fixed color, breathing or color cycle.
 - 💾 **Saved on the mouse.** Changes go to the active onboard profile, the same place G HUB writes, so they keep working with Rato closed and after sleep. Every write backs up the profile sectors first and writes the original back if it fails halfway.
 
@@ -86,7 +86,7 @@ swift run Rato state                         # DPI, polling rate, mode and light
 swift run Rato profiles                      # the 5 profiles stored on the mouse
 swift run Rato set dpi 400,800,1600,3200 4   # DPI levels and which one is the default
 swift run Rato set dpi-default 2
-swift run Rato set rate 1                    # polling in ms: 1, 2, 4 or 8
+swift run Rato set rate 1000                 # polling in Hz: 125 to 1000
 swift run Rato set led off                   # or: color ff0000, breathe 00ff00, cycle
 swift run Rato backup
 swift run Rato restore <backup folder>

@@ -44,8 +44,8 @@ struct MouseSettings {
     var defaultDpiIndex: Int
     var dpiRange: ClosedRange<Int>?
     var dpiStep: Int
-    var reportRateMs: Int
-    var supportedRatesMs: [Int]
+    var reportRateHz: Int
+    var supportedRatesHz: [Int]
     var led: LedEffect?
     var ledKinds: [LedKind]
 }
@@ -53,7 +53,7 @@ struct MouseSettings {
 enum SettingChange {
     case dpi(levels: [Int], defaultIndex: Int)
     case dpiDefault(Int)
-    case rate(ms: Int)
+    case rate(hz: Int)
     case led(LedEffect)
 }
 

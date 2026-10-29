@@ -34,7 +34,7 @@ extension MouseCard {
         let battery = BatteryState(percent: 65, status: "descarregando", charging: false, voltageMv: 3904, approx: true,
                                    source: "0x1001", hoursLeft: variant == "aprendendo" ? nil : 21.4)
         let settings = MouseSettings(dpiLevels: [400, 800, 1600, 3200], defaultDpiIndex: 2, dpiRange: 100...25600,
-                                     dpiStep: 50, reportRateMs: 1, supportedRatesMs: [1, 2, 4, 8],
+                                     dpiStep: 50, reportRateHz: 1000, supportedRatesHz: [125, 250, 500, 1000],
                                      led: .fixed(0x00, 0xb4, 0xff), ledKinds: [.off, .fixed, .breathe, .cycle])
         return [MouseCard(id: "amostra", name: "G703 LIGHTSPEED Wireless Gaming Mouse", connection: "USB Receiver, slot 1",
                           modelId: 0x4086, battery: battery, batteryErr: variant == "dormindo" ? "sem resposta" : nil,
@@ -234,11 +234,11 @@ private struct SettingsView: View {
                     }
                 }
             }
-            if !s.supportedRatesMs.isEmpty {
+            if !s.supportedRatesHz.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     title("Polling (Hz)", "speedometer")
-                    Chips(values: s.supportedRatesMs.sorted(by: >), selection: s.reportRateMs,
-                          label: { "\(1000 / max(1, $0))" }) { mouse.apply(.rate(ms: $0)) }
+                    Chips(values: s.supportedRatesHz.sorted(), selection: s.reportRateHz,
+                          label: { "\($0)" }) { mouse.apply(.rate(hz: $0)) }
                 }
             }
             if !s.ledKinds.isEmpty { LightView(mouse: mouse, s: s) }

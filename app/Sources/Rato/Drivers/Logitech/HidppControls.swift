@@ -237,10 +237,12 @@ extension HidppClient {
             }
             try setCurrentDpiIndex(i)
             return dir
-        case let .rate(ms):
+        case let .rate(hz):
             let supported = try reportRates().supported
-            guard supported.contains(ms) else { throw HidppError.notSupported("polling \(ms) ms fora de \(supported) ms") }
-            return try editActiveProfile { $0[0] = UInt8(ms) }
+            guard hz > 0, 1000 % hz == 0, supported.contains(1000 / hz) else {
+                throw HidppError.notSupported("polling \(hz) Hz fora de \(supported.map { 1000 / $0 }) Hz")
+            }
+            return try editActiveProfile { $0[0] = UInt8(1000 / hz) }
         case let .led(e):
             releaseLedSoftwareControl()
             return try editActiveProfile { Self.setLed(e, in: &$0) }

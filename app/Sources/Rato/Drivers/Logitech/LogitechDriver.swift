@@ -66,7 +66,7 @@ final class LogitechDriver: MouseDriver, MouseDriverType {
         return MouseSettings(
             dpiLevels: p.dpis.filter { $0 > 0 }, defaultDpiIndex: p.defaultDpiIndex,
             dpiRange: dpi.min...dpi.max, dpiStep: dpi.step ?? 1,
-            reportRateMs: p.reportRateMs, supportedRatesMs: rates,
+            reportRateHz: 1000 / max(1, p.reportRateMs), supportedRatesHz: rates.map { 1000 / $0 },
             led: LedEffect(hidppProfileBytes: p.leds[0]), ledKinds: ledKinds ?? [])
     }
 

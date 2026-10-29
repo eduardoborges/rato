@@ -8,7 +8,7 @@ import AppKit
 //   Rato probe | state                     qualquer mouse
 //   Rato set dpi <níveis> <padrão>         ex.: set dpi 400,800,1600,3200 4
 //   Rato set dpi-default <n>
-//   Rato set rate <ms>
+//   Rato set rate <Hz>
 //   Rato set led off | color RRGGBB | breathe RRGGBB | cycle
 //   Rato profiles | features | backup | restore <pasta> | mode host|onboard    só Logitech
 //   Rato selftest
@@ -57,7 +57,7 @@ enum CLI {
                     let levels = s.dpiLevels.enumerated().map { $0.offset == s.defaultDpiIndex ? "[\($0.element)]" : "\($0.element)" }
                     let range = s.dpiRange.map { "; aceita \($0.lowerBound)...\($0.upperBound) passo \(s.dpiStep)" } ?? ""
                     print("    dpi       : \(levels.joined(separator: " "))\(range)")
-                    print("    polling   : \(s.reportRateMs) ms (aceita \(s.supportedRatesMs.map(String.init).joined(separator: "/")) ms)")
+                    print("    polling   : \(s.reportRateHz) Hz (aceita \(s.supportedRatesHz.map(String.init).joined(separator: "/")) Hz)")
                     print("    led       : \(s.led.map { "\($0)" } ?? "?") (aceita \(s.ledKinds.map { "\($0)" }.joined(separator: ", ")))")
                 } else {
                     print("    ajustes   : nenhum (driver só lê)")
@@ -72,7 +72,7 @@ enum CLI {
             }
         case "set":
             guard let change = parseChange(args) else {
-                hlog("uso: set dpi <níveis> <padrão> | dpi-default <n> | rate <ms> | led off|color RRGGBB|breathe RRGGBB|cycle")
+                hlog("uso: set dpi <níveis> <padrão> | dpi-default <n> | rate <Hz> | led off|color RRGGBB|breathe RRGGBB|cycle")
                 exit(64)
             }
             for t in targets {
@@ -179,7 +179,7 @@ func parseChange(_ a: [String]) -> SettingChange? {
         guard let n = Int(a[2]) else { return nil }
         return .dpi(levels: levels, defaultIndex: n - 1)
     case ("dpi-default", 2): return Int(a[1]).map { .dpiDefault($0 - 1) }
-    case ("rate", 2): return Int(a[1]).map { .rate(ms: $0) }
+    case ("rate", 2): return Int(a[1]).map { .rate(hz: $0) }
     case ("led", _):
         switch a.dropFirst().first {
         case "off": return .led(.off)
