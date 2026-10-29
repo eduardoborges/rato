@@ -34,7 +34,7 @@ extension MouseCard {
         let battery = BatteryState(percent: 65, status: "descarregando", charging: false, voltageMv: 3904, approx: true,
                                    source: "0x1001", hoursLeft: variant == "aprendendo" ? nil : 21.4)
         let settings = MouseSettings(dpiLevels: [400, 800, 1600, 3200], defaultDpiIndex: 2, dpiRange: 100...25600,
-                                     dpiStep: 50, reportRateHz: 1000, supportedRatesHz: [125, 250, 500, 1000],
+                                     dpiStep: 50, maxDpiLevels: 5, reportRateHz: 1000, supportedRatesHz: [125, 250, 500, 1000],
                                      led: .fixed(0x00, 0xb4, 0xff), ledKinds: [.off, .fixed, .breathe, .cycle])
         return [MouseCard(id: "amostra", name: "G703 LIGHTSPEED Wireless Gaming Mouse", connection: "USB Receiver, slot 1",
                           modelId: 0x4086, battery: battery, batteryErr: variant == "dormindo" ? "sem resposta" : nil,
@@ -253,7 +253,7 @@ private struct SettingsView: View {
                 Button("Gravar", action: save).glassButton()
             }
             let range = s.dpiRange.map { ", de \($0.lowerBound) a \($0.upperBound) em passos de \(s.dpiStep)" } ?? ""
-            Text("Até 5 valores separados por vírgula\(range).").font(.caption).foregroundStyle(.secondary)
+            Text("Até \(s.maxDpiLevels) valores separados por vírgula\(range).").font(.caption).foregroundStyle(.secondary)
         }
     }
 

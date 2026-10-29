@@ -44,6 +44,7 @@ struct MouseSettings {
     var defaultDpiIndex: Int
     var dpiRange: ClosedRange<Int>?
     var dpiStep: Int
+    var maxDpiLevels: Int
     var reportRateHz: Int
     var supportedRatesHz: [Int]
     var led: LedEffect?
