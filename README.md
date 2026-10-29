@@ -1,7 +1,7 @@
 <div align="center">
   <img src=".github/icon.png" width="128" alt="Rato app icon">
   <h1>🐭 Rato</h1>
-  <p>Battery, DPI, polling rate and lighting for Logitech mice, from the <strong>macOS</strong> menu bar.<br>
+  <p>Battery, DPI, polling rate and lighting for Logitech mice, and battery, DPI and polling rate for ATK and VXE mice, from the <strong>macOS</strong> menu bar.<br>
   Rato talks HID++ to the mouse and saves changes to its onboard profile, so <strong>G HUB doesn't have to be running</strong> or even installed.</p>
 
   [![release](https://img.shields.io/github/v/release/eduardoborges/rato)](https://github.com/eduardoborges/rato/releases/latest)
@@ -29,9 +29,9 @@ G HUB is big, keeps an agent and an updater daemon running all the time, and on 
 
 - 🔋 **Battery with time left.** Percentage and hours of use left from a discharge curve Rato learns from your mouse, so G HUB doesn't need to be installed.
 - 🎯 **DPI levels.** Edit the levels and pick the default one. The change applies right away.
-- ⚡ **Polling rate.** 125 to 1000 Hz.
+- ⚡ **Polling rate.** 125 to 1000 Hz, and up to 8000 Hz on ATK and VXE 8K receivers.
 - 💡 **Lighting.** Off, fixed color, breathing or color cycle.
-- 💾 **Saved on the mouse.** Changes go to the active onboard profile, the same place G HUB writes, so they keep working with Rato closed and after sleep. Every write backs up the profile sectors first and writes the original back if it fails halfway.
+- 💾 **Saved on the mouse.** Changes go to the active onboard profile, the same place G HUB writes, so they keep working with Rato closed and after sleep. Every write backs up the profile sectors first and writes the original back if it fails halfway. On ATK and VXE mice, changes go to the mouse's memory. Rato reads each block back and writes the old one back if it doesn't match.
 
 Everything is in a panel that opens from a mouse icon in the menu bar. The icon fills up with the battery level and can show the percentage next to it. On macOS 26 and later the selected options use Liquid Glass. Older versions get a flat fill instead. The first time the panel opens, Rato downloads the G703's photo from Logitech's site and keeps it in `~/Library/Application Support/Rato`. Other mice get a drawing.
 
@@ -39,14 +39,15 @@ And the rest:
 
 - A command line with the same settings, plus profile dumps, backup and restore.
 - A driver layer for other brands. A generic driver already shows the Bluetooth battery of any mouse.
-- It refuses to write while G HUB's agent runs, since both would talk over the same HID++ channel.
+- It refuses to write while G HUB's agent or ATK HUB is running, since they talk over the same channel.
 - The interface is in Portuguese for now.
 
 ## Requirements
 
 - macOS 13 or later
 - A Logitech mouse with HID++ 2.0 and onboard profiles (feature `0x8100`). Only tested on a G703 LIGHTSPEED on its USB receiver.
-- G HUB closed while Rato writes. It can stay installed.
+- Or an ATK or VXE mouse with a Compx chip (vendor ID `0x373B`), wired or on its 2.4 GHz receiver. Only tested on an ATK A9 Ultra Max 2.0 on its 8K receiver. Support for the other models comes from ATK HUB 3.2.6's code.
+- G HUB or ATK HUB closed while Rato writes. They can stay installed.
 - Input Monitoring permission for Rato.app. macOS asks on first launch.
 
 ## Install
@@ -86,7 +87,7 @@ swift run Rato state                         # DPI, polling rate, mode and light
 swift run Rato profiles                      # the 5 profiles stored on the mouse
 swift run Rato set dpi 400,800,1600,3200 4   # DPI levels and which one is the default
 swift run Rato set dpi-default 2
-swift run Rato set rate 1000                 # polling in Hz: 125 to 1000
+swift run Rato set rate 1000                 # polling in Hz: 125 to 1000, up to 8000 on 8K receivers
 swift run Rato set led off                   # or: color ff0000, breathe 00ff00, cycle
 swift run Rato backup
 swift run Rato restore <backup folder>
@@ -124,6 +125,7 @@ Until three bands are learned, the percentage comes from the generic curve, whic
 
 - Buttons can't be remapped yet.
 - Lighting uses the same effect on both G703 zones.
+- On ATK and VXE mice, lighting can't be changed yet, and DPI levels don't show for the PAW3395SE, PAW3311 and PAW3320 sensors.
 - The panel has a fixed color palette, and breathing and cycle run at 4 s and 8 s at full intensity. Other colors only from the command line.
 - Hours left show up after a few hours of use and only get accurate after a full discharge.
 - One mouse per receiver: the first slot that answers.
@@ -131,14 +133,15 @@ Until three bands are learned, the percentage comes from the generic curve, whic
 
 ## Other mice
 
-Each brand has a driver in `app/Sources/Rato/Drivers/`. There are two today:
+Each brand has a driver in `app/Sources/Rato/Drivers/`. There are three today:
 
 | Driver | Mice | What it does |
 |---|---|---|
 | Logitech | HID++ 2.0, direct or on a receiver | battery, DPI, polling rate, lighting and profile backup |
+| Compx | ATK and VXE, wired or on a receiver | battery, DPI and polling rate |
 | Generic | any external mouse without its own driver | name and, over Bluetooth, battery |
 
-The generic driver hasn't been tested with a real mouse, because the only one here was the G703. Its battery parser was checked against two Bluetooth keyboards (`Rato selftest`).
+The generic driver hasn't been tested with a real mouse, since both mice here have their own driver. Its battery parser was checked against two Bluetooth keyboards (`Rato selftest`).
 
 To add a brand:
 
@@ -184,4 +187,4 @@ shasum -a 256 analysis/lghub_agent.arm64
 
 ## License
 
-MIT, see [LICENSE](LICENSE). Logitech, G HUB and LIGHTSPEED are trademarks of Logitech. Rato isn't affiliated with Logitech. The G703 photo in the screenshots is Logitech's and comes from its website.
+MIT, see [LICENSE](LICENSE). Logitech, G HUB and LIGHTSPEED are trademarks of Logitech. Rato isn't affiliated with Logitech. The G703 photo in the screenshots is Logitech's and comes from its website. ATK and VXE are trademarks of their owners, and Rato isn't affiliated with them either.

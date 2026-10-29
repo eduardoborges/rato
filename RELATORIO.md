@@ -137,6 +137,51 @@ A curva mV→% do G HUB para devices que só têm `0x1001` ficou de fora. Em 392
 
 Os botões (16 entradas de 4 bytes no perfil, mais o `0x8110`) ainda não foram mapeados.
 
+## ATK e VXE (Compx)
+
+Fonte: ATK HUB Beta 3.2.6 (`cn.atk.drive`), um app Electron. O `app.asar` de fora só abre a janela. A interface e o protocolo ficam em `Contents/Resources/main/app.asar`, no `static/index-*.js` (15 MB, minificado). O que importa está na classe do mouse Compx (a que o código testa com `isCompxMouse`), na base dos pacotes de 16 bytes e no transporte, que manda tudo pelo report 8.
+
+O receptor `0x373B:0x11FE` ("Wireless mouse 8k NANO dongle-L") tem três interfaces: mouse, teclado e uma vendor com usage page `0xFF05`. A vendor declara os reports `0x10`, `0x02`, `0x05`, `0x03`, `0x08` (16 bytes, entrada e saída), `0x06` (feature de 7 bytes), `0x09` (48 bytes) e `0x0B` (mouse). O filtro WebHID do ATK HUB pede a collection `0xFF04` uso 2. No macOS o IOHIDDevice é a interface inteira, então o Rato reconhece o aparelho pela collection `0xFF02`, a que carrega o report 8.
+
+O pacote é igual nos dois sentidos:
+
+```
+cmd  status  addr_hi  addr_lo  len  d0 … d9  checksum
+```
+
+O checksum é `0x55 − (8 + soma dos bytes 0 a 14)`, módulo 256. A resposta repete o comando no byte 0, e as da EEPROM repetem também o endereço.
+
+| Cmd | Nome no ATK HUB | O que faz |
+|---|---|---|
+| `0x03` | GetWirelessMouseOnline | d0 = 1 quando o mouse está ligado ao receptor |
+| `0x04` | GetBatteryLevel | d0 = %, d1 = 1 carregando, d2 e d3 = mV big endian |
+| `0x07` | SetEEPROM | grava `len` bytes em `addr` |
+| `0x08` | GetEEPROM | devolve `len` bytes de `addr` a partir de d0 |
+| `0x10` | GetMouseCIDMID | d0 = cid, d1 = mid; o par identifica o modelo |
+
+Na EEPROM, todo campo vem seguido de um byte de conferência, `0x55 − soma do campo`.
+
+| Endereço | Conteúdo |
+|---|---|
+| `0x0000` | polling, quantos níveis de DPI, nível em uso (base 0) e bhop |
+| `0x000C` | 8 níveis de DPI de 4 bytes: x, y, extra e conferência |
+| `0x002C` | cor de cada nível |
+| `0x004C` | luz do DPI: efeito (1 fixo, 2 respiração), brilho (16, 128 ou 255), velocidade (1, 3 ou 5) e ligada |
+| `0x0060` | botões |
+| `0x1B00` | níveis do PAW3955, 6 bytes cada: x e y em 16 bits, extra e conferência |
+
+Códigos de polling: `1` = 1000 Hz, `2` = 500, `4` = 250, `8` = 125, `16` = 2000, `32` = 4000 e `64` = 8000.
+
+A conta do DPI muda com o sensor, e o sensor sai do par cid/mid na tabela de aparelhos do ATK HUB, copiada em `CompxModels.swift`. No PAW3395 e no PAW3950, o valor é 50 × (1 + n), com n de 10 bits: os 2 bits altos ficam no byte extra, e o bit `0x01` dobra o valor. No PAW3950 Ultra, sem o bit `0x02` o valor é 10 × (n + 1), e com ele, 50 × n + 10050. O PAW3955 guarda o valor menos 1 em 16 bits. O PAW3395SE e o PAW3311 usam uma tabela de valores, o PAW3320 divide por 39 e 38, e o Rato ainda não converte nenhum dos três.
+
+Testado num ATK A9 Ultra Max 2.0 (cid 1, mid 37, PAW3950 Ultra) no receptor 8K, em 29/10/2026:
+
+- O framing é o do HID++: id no argumento e no byte 0 do buffer. A resposta chega como input report 8 de 17 bytes, com o id no byte 0. Sem o id no buffer, o receptor não responde.
+- A resposta usa o mesmo checksum do pedido.
+- O mouse dorme uns 20 s depois de parar. Dormindo, o receptor responde ao `0x03` com d0 = 0 e não responde à bateria nem ao cid/mid. Só o movimento acorda o mouse: com ele parado, ler a EEPROM não acordou. Numa outra vez a EEPROM respondeu enquanto a bateria e o cid/mid não respondiam, e a causa não ficou clara.
+- A gravação vale na hora. Com o polling em 1000 Hz chegaram 1030 reports por segundo, e em 4000 Hz, 3940.
+- O ATK HUB tinha gravado 1 nível e o nível em uso 0, então o índice começa em 0. Os bytes gravados batem com a conta do 3950 Ultra: `4a 4a 44` é 3310 e `3f 3f 44` é 3200.
+
 ## G HUB que não abre
 
 Se o G HUB trava em "Loading applications", confira se existe `/Library/LaunchDaemons/com.logi.ghub.updater.plist`. O `lghub_updater` roda como daemon (`--daemonized`) e serve HTTP local; sem ele, o `lghub_agent` fica esperando em `resources_helper::get_local_http_url` para cada modelo de device e a UI nunca termina de carregar. O `lghub_installer --silent` não repara, porque responde "Already installed!" enquanto `/Applications/lghub.app` existe. O que resolveu foi recriar o plist com `ProgramArguments` = `[lghub_updater, --daemonized]`, `RunAtLoad` e `KeepAlive`, e ativar com `launchctl bootstrap system`.
