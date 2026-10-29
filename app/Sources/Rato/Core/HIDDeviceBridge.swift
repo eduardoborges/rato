@@ -21,6 +21,8 @@ final class HIDDeviceBridge: @unchecked Sendable {
     private let runLoop: CFRunLoop
     private var opened = false
     private var inputBuffer: UnsafeMutablePointer<UInt8>?
+    /// Report ids que entram na fila de input. nil = todos.
+    var inputReportIDs: Set<UInt8>?
 
     private let inLock = NSLock()
     private var inputBodies: [[UInt8]] = []
@@ -63,6 +65,7 @@ final class HIDDeviceBridge: @unchecked Sendable {
     var maxIn: Int { (IOHIDDeviceGetProperty(device, "MaxInputReportSize" as CFString) as? NSNumber)?.intValue ?? 0 }
     var maxOut: Int { (IOHIDDeviceGetProperty(device, "MaxOutputReportSize" as CFString) as? NSNumber)?.intValue ?? 0 }
     var maxFeat: Int { (IOHIDDeviceGetProperty(device, "MaxFeatureReportSize" as CFString) as? NSNumber)?.intValue ?? 0 }
+    var reportDescriptor: [UInt8] { (IOHIDDeviceGetProperty(device, "ReportDescriptor" as CFString) as? Data).map { [UInt8]($0) } ?? [] }
 
     var desc: String {
         "\(productName) [\(transport), \(vidpid), usage 0x\(String(usagePage, radix: 16))/0x\(String(usage, radix: 16)), loc 0x\(String(locationId, radix: 16)), maxReport in=\(maxIn) out=\(maxOut) feat=\(maxFeat), sn \(serial)]"
@@ -94,6 +97,7 @@ extension HIDDeviceBridge: CustomStringConvertible {
                 let me = Unmanaged<HIDDeviceBridge>.fromOpaque(ctx).takeUnretainedValue()
                 var body = Array(UnsafeBufferPointer(start: report, count: reportLength))
                 let rid = UInt8(truncatingIfNeeded: _reportID)
+                if let only = me.inputReportIDs, !only.contains(rid) { return }
                 // O callback às vezes entrega o payload sem o report id (o id vem no argumento).
                 if (rid == 0x10 || rid == 0x11 || rid == 0x20), body.first != rid {
                     body.insert(rid, at: 0)
