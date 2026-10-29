@@ -16,7 +16,7 @@ import AppKit
 
 extension Drivers {
     /// Drivers de fabricante vêm antes; o genérico fica por último.
-    static let all: [MouseDriverType.Type] = [LogitechDriver.self, GenericDriver.self]
+    static let all: [MouseDriverType.Type] = [LogitechDriver.self, CompxDriver.self, GenericDriver.self]
 }
 
 enum CLI {
@@ -140,6 +140,7 @@ enum CLI {
 /// Confere o roteamento de drivers, o parser de bateria Bluetooth e o modelo de bateria. Sai com erro se algo quebrar.
 func selftest() -> Never {
     precondition(Drivers.route(vendorID: 0x046D) == LogitechDriver.self, "Logitech vai para o driver HID++")
+    precondition(Drivers.route(vendorID: 0x373B) == CompxDriver.self, "ATK e VXE vão para o driver Compx")
     precondition(Drivers.route(vendorID: 0x1532) == GenericDriver.self, "fabricante sem driver cai no genérico")
     precondition(Drivers.route(vendorID: 0, in: [LogitechDriver.self]) == nil, "sem genérico, nada é roteado")
     let json = """
@@ -163,6 +164,21 @@ func selftest() -> Never {
     let half = m.estimate(mv: 3840), low = m.estimate(mv: 3700)
     precondition(abs(half.percent - 50) <= 3 && abs(half.hoursLeft! - 4.25) < 0.25, "aprende o ritmo: 50% e ~4,25 h no meio")
     precondition(abs(low.percent - 29) <= 3, "a curva aprendida vence a genérica, que daria 10%")
+    // Compx: o checksum do pedido de bateria que o ATK HUB manda, e o DPI que volta igual depois de convertido.
+    precondition(CompxClient.packet(.battery)[15] == 0x49, "checksum Compx: 0x55 - (8 + 4)")
+    precondition(CompxDriver.models[[1, 10]]?.name == "ATK X1 Ultimate 2.0")
+    for (sensor, good, bad) in [(CompxSensor.paw3950Ultra, [10, 800, 10000, 10050, 26000, 42000], [5, 10010, 30050, 42010]),
+                                (.paw3950, [50, 1600, 30000, 36000], [75, 30050]),
+                                (.paw3395, [100, 400, 30000], [120, 30100]),
+                                (.paw3955, [1, 777, 50000], [0, 50001])] {
+        precondition(good.allSatisfy(sensor.accepts) && !bad.contains(where: sensor.accepts), "DPI do \(sensor)")
+    }
+    precondition(CompxSensor.paw3950Ultra.encode(42000) == [219, 219, 0x33], "3950 Ultra: 21000 × 2")
+    precondition(!CompxSensor.paw3395SE.converts)
+    // Bytes lidos de um ATK A9 Ultra Max 2.0: a resposta da bateria e dois níveis de DPI da EEPROM.
+    precondition(CompxClient.checksum([0x04, 0, 0, 0, 2, 0x32, 0, 0x0f, 0x7b]) == 0x8b, "a resposta usa o mesmo checksum")
+    precondition(CompxDriver.models[[1, 37]]?.sensor == .paw3950Ultra)
+    precondition(CompxSensor.paw3950Ultra.decode([0x4a, 0x4a, 0x44]) == 3310 && CompxSensor.paw3950Ultra.encode(3200) == [0x3f, 0x3f, 0x44])
     for d in BluetoothBattery.connected({ _ in true }) {
         print("    bluetooth : \(d.name) [\(d.minorType)] \(d.percent.map { "\($0)%" } ?? "sem bateria")")
     }
